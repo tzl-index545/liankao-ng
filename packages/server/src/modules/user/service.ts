@@ -85,7 +85,10 @@ export abstract class UserService {
 
     return {
       success: true as const,
-      data: participations
+      data: participations.map((item) => ({
+        ...item,
+        postContestRating: item.postContestRating ?? 0
+      }))
     }
   }
 

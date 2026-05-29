@@ -57,8 +57,10 @@ const app = new Elysia({ prefix: '/api' })
         404 : t.String(),
       },
     })
-    .listen(3000);
 
 export type App = typeof app
 
-app.listen(3000)
+const port = Number(process.env.PORT ?? 3000)
+const hostname = process.env.HOST ?? "0.0.0.0"
+
+app.listen({ port, hostname })

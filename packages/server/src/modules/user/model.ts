@@ -61,7 +61,7 @@ export const userParticipationItem = t.Object({
   contestId: t.Number(),
   totalScore: t.Number(),
   rank: t.Number(),
-  postContestRating: t.Number()
+  postContestRating: t.Union([t.Number(), t.Null()])
 })
 
 export const userParticipationsResponse = t.Object({
