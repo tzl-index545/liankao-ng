@@ -8,6 +8,7 @@ import {
   contestListQuery,
   contestPaginatedResponse,
   contestProblemsResponse,
+  contestRanklistResponse,
 } from './model'
 import { ContestService } from './service'
 
@@ -26,6 +27,7 @@ export const contest = new Elysia({
     detailParams: contestDetailParams,
     detailResponse: contestDetailResponse,
     problemsResponse: contestProblemsResponse,
+    ranklistResponse: contestRanklistResponse,
     apiError: contestApiError,
   })
   .prefix('model', 'contest')
@@ -47,6 +49,17 @@ export const contest = new Elysia({
     detail: {
       summary: '比赛题目列表',
       description: '按比赛题目顺序返回题目 id、名称、描述、分值和顺序。',
+    },
+  })
+  .get('/:id/ranklist', ({ params }) => ContestService.getRanklist(params.id), {
+    params: contestDetailParams,
+    response: {
+      200: contestRanklistResponse,
+      404: contestApiError,
+    },
+    detail: {
+      summary: '比赛排行榜',
+      description: '按总分降序返回比赛参赛者排名、用户信息、总分和每题得分。',
     },
   })
   .get('/:id', ({ params }) => ContestService.getById(params.id), {

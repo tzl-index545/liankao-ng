@@ -67,6 +67,29 @@ export const contestProblemsResponse = t.Object({
   data: t.Array(contestProblemItem),
 })
 
+export const contestRanklistUser = t.Object({
+  id: t.Number(),
+  nickname: t.String(),
+  realname: t.String(),
+  xsyusername: t.String(),
+})
+
+export const contestRanklistItem = t.Object({
+  id: t.Number(),
+  userId: t.Number(),
+  contestId: t.Number(),
+  rank: t.Number(),
+  totalScore: t.Number(),
+  postContestRating: t.Nullable(t.Number()),
+  scores: t.Record(t.String(), t.Number()),
+  user: contestRanklistUser,
+})
+
+export const contestRanklistResponse = t.Object({
+  success: t.Literal(true),
+  data: t.Array(contestRanklistItem),
+})
+
 export const contestApiError = t.Object({
   success: t.Literal(false),
   message: t.String(),
