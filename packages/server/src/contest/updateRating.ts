@@ -1,17 +1,29 @@
-import { PrismaClient, Prisma } from '../generated/prisma/client';
+import { Prisma } from '../generated/prisma/client';
 import { prisma } from '../prisma';
 
 const INITIAL_RATING = 1500;
+const WRITE_CHUNK_SIZE = 100;
 
 type Contestant = {
   participationId: number;
   userId: number;
+  previousRank: number;
+  previousPostContestRating: number | null;
   rank: number;
   points: number;
   rating: number;
   needRating: number;
   seed: number;
   delta: number;
+};
+
+type RatedContestant = Contestant & {
+  newRating: number;
+};
+
+type ContestRatingResult = {
+  contestId: number;
+  contestants: RatedContestant[];
 };
 
 function eloWinProbability(ra: number, rb: number): number {
@@ -37,18 +49,16 @@ function reassignRanks(contestants: Contestant[]): void {
     contestant.needRating = 0;
   }
 
-  let first = 0;
+  let rank = 1;
   let points = contestants[0].points;
+  contestants[0].rank = rank;
   for (let i = 1; i < contestants.length; i++) {
     if (contestants[i].points < points) {
-      for (let j = first; j < i; j++) contestants[j].rank = i;
-      first = i;
+      rank = i + 1;
       points = contestants[i].points;
     }
+    contestants[i].rank = rank;
   }
-
-  const lastRank = contestants.length;
-  for (let j = first; j < contestants.length; j++) contestants[j].rank = lastRank;
 }
 
 function getSeed(contestants: Contestant[], rating: number): number {
@@ -142,18 +152,16 @@ function rankFromScores(rows: Array<{ userId: number; totalScore: number }>): Ma
   const rankByUserId = new Map<number, number>();
   if (sorted.length === 0) return rankByUserId;
 
-  let first = 0;
+  let rank = 1;
   let points = sorted[0].totalScore;
+  rankByUserId.set(sorted[0].userId, rank);
   for (let i = 1; i < sorted.length; i++) {
     if (sorted[i].totalScore < points) {
-      for (let j = first; j < i; j++) rankByUserId.set(sorted[j].userId, i);
-      first = i;
+      rank = i + 1;
       points = sorted[i].totalScore;
     }
+    rankByUserId.set(sorted[i].userId, rank);
   }
-
-  const lastRank = sorted.length;
-  for (let j = first; j < sorted.length; j++) rankByUserId.set(sorted[j].userId, lastRank);
 
   return rankByUserId;
 }
@@ -176,6 +184,7 @@ async function loadContestantsFromDb(
       userId: true,
       totalScore: true,
       rank: true,
+      postContestRating: true,
     },
   });
 
@@ -184,6 +193,8 @@ async function loadContestantsFromDb(
   return rows.map((row) => ({
     participationId: row.id,
     userId: row.userId,
+    previousRank: row.rank,
+    previousPostContestRating: row.postContestRating,
     rank: ranks.get(row.userId) ?? row.rank,
     points: row.totalScore,
     rating: ratings.get(row.userId) ?? INITIAL_RATING,
@@ -208,54 +219,129 @@ async function createBatch(
   return batch.id;
 }
 
-async function persistContestResult(
-  tx: Prisma.TransactionClient,
-  batchId: number,
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    chunks.push(items.slice(i, i + size));
+  }
+  return chunks;
+}
+
+function calculateContestResult(
   contestId: number,
   contestants: Contestant[],
   ratings: Map<number, number>,
-): Promise<void> {
-  for (const c of contestants) {
-    const newRating = c.rating + c.delta;
+): ContestRatingResult {
+  processContestants(contestants);
 
-    await tx.ratingParticipationChange.create({
-      data: {
+  const ratedContestants = contestants.map((contestant) => {
+    const newRating = contestant.rating + contestant.delta;
+    ratings.set(contestant.userId, newRating);
+    return {
+      ...contestant,
+      newRating,
+    };
+  });
+
+  return {
+    contestId,
+    contestants: ratedContestants,
+  };
+}
+
+async function updateParticipations(
+  tx: Prisma.TransactionClient,
+  contestants: RatedContestant[],
+): Promise<void> {
+  for (const chunk of chunkArray(contestants, WRITE_CHUNK_SIZE)) {
+    if (chunk.length === 0) continue;
+
+    await tx.$executeRaw`
+      UPDATE "Participation"
+      SET
+        "rank" = CASE "id"
+          ${Prisma.join(chunk.map((c) => Prisma.sql`WHEN ${c.participationId} THEN ${c.rank}`), ' ')}
+          ELSE "rank"
+        END,
+        "postContestRating" = CASE "id"
+          ${Prisma.join(chunk.map((c) => Prisma.sql`WHEN ${c.participationId} THEN ${c.newRating}`), ' ')}
+          ELSE "postContestRating"
+        END
+      WHERE "id" IN (${Prisma.join(chunk.map((c) => c.participationId))})
+    `;
+  }
+}
+
+async function updateUsers(
+  tx: Prisma.TransactionClient,
+  userRatings: Map<number, number>,
+): Promise<void> {
+  const entries = [...userRatings.entries()].map(([userId, rating]) => ({ userId, rating }));
+
+  for (const chunk of chunkArray(entries, WRITE_CHUNK_SIZE)) {
+    if (chunk.length === 0) continue;
+
+    await tx.$executeRaw`
+      UPDATE "User"
+      SET "rating" = CASE "id"
+        ${Prisma.join(chunk.map((entry) => Prisma.sql`WHEN ${entry.userId} THEN ${entry.rating}`), ' ')}
+        ELSE "rating"
+      END
+      WHERE "id" IN (${Prisma.join(chunk.map((entry) => entry.userId))})
+    `;
+  }
+}
+
+async function persistRatingResults(
+  tx: Prisma.TransactionClient,
+  batchId: number,
+  results: ContestRatingResult[],
+): Promise<void> {
+  const participationChanges: Prisma.RatingParticipationChangeCreateManyInput[] = [];
+  const userChanges: Prisma.RatingUserChangeCreateManyInput[] = [];
+  const participationUpdates: RatedContestant[] = [];
+  const finalUserRatings = new Map<number, number>();
+
+  for (const result of results) {
+    for (const c of result.contestants) {
+      participationChanges.push({
         batchId,
-        contestId,
+        contestId: result.contestId,
         participationId: c.participationId,
         userId: c.userId,
-        beforeRank: c.rank,
+        beforeRank: c.previousRank,
         afterRank: c.rank,
-        beforePostContestRating: null,
-        afterPostContestRating: newRating,
-      },
-    });
+        beforePostContestRating: c.previousPostContestRating,
+        afterPostContestRating: c.newRating,
+      });
 
-    await tx.ratingUserChange.create({
-      data: {
+      userChanges.push({
         batchId,
-        contestId,
+        contestId: result.contestId,
         userId: c.userId,
         beforeRating: c.rating,
-        afterRating: newRating,
-      },
-    });
+        afterRating: c.newRating,
+      });
 
-    await tx.participation.update({
-      where: { id: c.participationId },
-      data: {
-        rank: c.rank,
-        postContestRating: newRating,
-      },
-    });
-
-    await tx.user.update({
-      where: { id: c.userId },
-      data: { rating: newRating },
-    });
-
-    ratings.set(c.userId, newRating);
+      participationUpdates.push(c);
+      finalUserRatings.set(c.userId, c.newRating);
+    }
   }
+
+  for (const chunk of chunkArray(participationChanges, WRITE_CHUNK_SIZE)) {
+    if (chunk.length > 0) {
+      await tx.ratingParticipationChange.createMany({ data: chunk });
+    }
+  }
+
+  for (const chunk of chunkArray(userChanges, WRITE_CHUNK_SIZE)) {
+    if (chunk.length > 0) {
+      await tx.ratingUserChange.createMany({ data: chunk });
+    }
+  }
+
+  await updateParticipations(tx, participationUpdates);
+  await updateUsers(tx, finalUserRatings);
 }
 
 async function recalculateRatingsFromContest(contestId: number): Promise<void> {
@@ -273,21 +359,21 @@ async function recalculateRatingsFromContest(contestId: number): Promise<void> {
     const contest = contests[i];
     const contestants = await loadContestantsFromDb(contest.id, ratings);
     if (contestants.length === 0) continue;
-    processContestants(contestants);
-    for (const c of contestants) ratings.set(c.userId, c.rating + c.delta);
+    calculateContestResult(contest.id, contestants, ratings);
+  }
+
+  const results: ContestRatingResult[] = [];
+  for (let i = startIndex; i < contests.length; i++) {
+    const contest = contests[i];
+    const contestants = await loadContestantsFromDb(contest.id, ratings);
+    if (contestants.length === 0) continue;
+
+    results.push(calculateContestResult(contest.id, contestants, ratings));
   }
 
   await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
     const batchId = await createBatch(tx, contestId, 'RECALCULATE_FROM_CONTEST');
-
-    for (let i = startIndex; i < contests.length; i++) {
-      const contest = contests[i];
-      const contestants = await loadContestantsFromDb(contest.id, ratings);
-      if (contestants.length === 0) continue;
-
-      processContestants(contestants);
-      await persistContestResult(tx, batchId, contest.id, contestants, ratings);
-    }
+    await persistRatingResults(tx, batchId, results);
 
     await tx.ratingCalculationBatch.update({
       where: { id: batchId },

@@ -3,6 +3,8 @@ import { prisma } from "../../prisma";
 import { getUserRealname, getUserXsyName } from "../../scraper/getUserInfo";
 import { UserPayload } from "../../types/user";
 
+const INITIAL_RATING = 1500;
+
 export async function registerGhostUser(
   xsyusername: string,
   realname: string
@@ -18,7 +20,7 @@ export async function registerGhostUser(
       xsyusername,
       nickname: xsyusername,
       realname,
-      rating: 0,
+      rating: INITIAL_RATING,
     },
   });
 }
@@ -62,7 +64,7 @@ export async function registerRealUser(unHashedPassword: string,nickname: string
       password,
       xsytoken,
       realname: realName,
-      rating: 0,
+      rating: INITIAL_RATING,
     },
   });
   return {
