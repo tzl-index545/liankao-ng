@@ -52,6 +52,34 @@
           <el-empty v-if="!problemsLoading && problems.length === 0" description="暂无题目" />
         </div>
       </div>
+      <div class="contest-ranklist">
+        <h3>排行榜</h3>
+        <div v-loading="ranklistLoading">
+          <el-table v-if="ranklist.length > 0" :data="ranklist" stripe style="width: 100%">
+            <el-table-column prop="rank" label="排名" width="90" align="center" />
+            <el-table-column label="用户" min-width="180">
+              <template #default="{ row }">
+                <el-button class="ranklist-user-link" type="primary" link @click="goToUser(row.user.id)">
+                  {{ formatUserName(row.user) }}
+                </el-button>
+              </template>
+            </el-table-column>
+            <el-table-column prop="totalScore" label="总分" width="100" align="center" />
+            <el-table-column
+              v-for="problem in problems"
+              :key="problem.id"
+              :label="problem.name"
+              width="120"
+              align="center"
+            >
+              <template #default="{ row }">
+                {{ formatProblemScore(row.scores, problem.id) }}
+              </template>
+            </el-table-column>
+          </el-table>
+          <el-empty v-if="!ranklistLoading && ranklist.length === 0" description="暂无排行榜" />
+        </div>
+      </div>
     </el-card>
   </div>
 </template>
@@ -62,14 +90,16 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElCard, ElTag, ElIcon, ElTable, ElTableColumn, ElButton, ElEmpty, ElMessage } from 'element-plus'
 import { Clock, Star } from '@element-plus/icons-vue'
 import StarRating from '../components/StarRating.vue'
-import { getContestDetail, getContestProblems, voteContest } from '../api/contest'
+import { getContestDetail, getContestProblems, getContestRanklist, voteContest } from '../api/contest'
 
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const problemsLoading = ref(false)
+const ranklistLoading = ref(false)
 const contest = ref({})
 const problems = ref([])
+const ranklist = ref([])
 const localRating = ref(0)
 const ratingDisabled = ref(false)
 
@@ -102,6 +132,18 @@ const fetchContestProblems = async () => {
   }
 }
 
+const fetchContestRanklist = async () => {
+  ranklistLoading.value = true
+  try {
+    const res = await getContestRanklist(route.params.id)
+    ranklist.value = res.data
+  } catch (error) {
+    ElMessage.error('获取排行榜失败')
+  } finally {
+    ranklistLoading.value = false
+  }
+}
+
 const handleRate = async (value) => {
   try {
     ratingDisabled.value = true
@@ -120,9 +162,28 @@ const goToProblem = (id) => {
   router.push(`/problems/${id}`)
 }
 
+const goToUser = (id) => {
+  router.push(`/users/${id}`)
+}
+
+const formatUserName = (user) => {
+  if (!user) return '-'
+  if (!user.realname) return user.nickname || '-'
+  return `${user.nickname}(${user.realname})`
+}
+
+const formatProblemScore = (scores, problemId) => {
+  const value = scores?.[String(problemId)]
+  if (value === null || value === undefined || value === '') return '-'
+  const numeric = Number(value)
+  if (Number.isNaN(numeric)) return '-'
+  return numeric
+}
+
 onMounted(() => {
   fetchContestDetail()
   fetchContestProblems()
+  fetchContestRanklist()
 })
 </script>
 
@@ -193,5 +254,23 @@ onMounted(() => {
   margin: 0 0 16px 0;
   font-size: 16px;
   color: #303133;
+}
+
+.contest-ranklist {
+  margin-top: 24px;
+}
+
+.contest-ranklist h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  color: #303133;
+}
+
+.ranklist-user-link {
+  padding: 0;
+  white-space: normal;
+  text-align: left;
+  line-height: 1.4;
+  font-weight: 600;
 }
 </style>

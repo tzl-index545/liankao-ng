@@ -23,6 +23,13 @@ export const getContestProblems = (id) => {
   })
 }
 
+export const getContestRanklist = (id) => {
+  return request({
+    url: `/contest/${id}/ranklist`,
+    method: 'get'
+  })
+}
+
 export const voteContest = (id, score) => {
   return request({
     url: `/vote/contest/${id}`,

@@ -6,6 +6,7 @@ import {
   getContestDetail,
   getContestList,
   getContestProblems,
+  getContestRanklist,
   voteContest
 } from '../../src/api/contest'
 import request from '../../src/utils/request'
@@ -205,6 +206,82 @@ describe('Contest API', () => {
       request.mockRejectedValue(mockError)
 
       await expect(getContestProblems(999)).rejects.toThrow('Failed to fetch contest problems')
+    })
+  })
+
+  describe('getContestRanklist', () => {
+    it('should call contest ranklist API with correct ID', async () => {
+      const contestId = 1
+      const mockResponse = {
+        success: true,
+        data: [
+          {
+            id: 1,
+            userId: 2,
+            contestId,
+            rank: 1,
+            totalScore: 200,
+            postContestRating: 1510,
+            scores: {
+              1: 100,
+              2: 100
+            },
+            user: {
+              id: 2,
+              nickname: 'TestUser',
+              realname: 'Test Realname',
+              xsyusername: 'test_user'
+            }
+          }
+        ]
+      }
+      request.mockResolvedValue(mockResponse)
+
+      await getContestRanklist(contestId)
+
+      expect(request).toHaveBeenCalledWith({
+        url: `/contest/${contestId}/ranklist`,
+        method: 'get'
+      })
+    })
+
+    it('should return contest ranklist', async () => {
+      const contestId = 1
+      const mockResponse = {
+        success: true,
+        data: [
+          {
+            id: 1,
+            userId: 2,
+            contestId,
+            rank: 1,
+            totalScore: 200,
+            postContestRating: null,
+            scores: {
+              1: 100,
+              2: 100
+            },
+            user: {
+              id: 2,
+              nickname: 'TestUser',
+              realname: 'Test Realname',
+              xsyusername: 'test_user'
+            }
+          }
+        ]
+      }
+      request.mockResolvedValue(mockResponse)
+
+      const result = await getContestRanklist(contestId)
+
+      expect(result).toEqual(mockResponse)
+    })
+
+    it('should handle API error', async () => {
+      const mockError = new Error('Failed to fetch contest ranklist')
+      request.mockRejectedValue(mockError)
+
+      await expect(getContestRanklist(999)).rejects.toThrow('Failed to fetch contest ranklist')
     })
   })
 

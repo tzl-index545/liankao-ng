@@ -11,6 +11,17 @@ function contestOrderBy(order: string | undefined): Prisma.ContestOrderByWithRel
   return [{ startTime: 'desc' }, { id: 'desc' }]
 }
 
+function normalizeScores(scores: Prisma.JsonValue): Record<string, number> {
+  if (!scores || typeof scores !== 'object' || Array.isArray(scores)) return {}
+
+  const result: Record<string, number> = {}
+  for (const [problemId, value] of Object.entries(scores as Record<string, unknown>)) {
+    const numeric = typeof value === 'number' ? value : Number(value)
+    result[problemId] = Number.isFinite(numeric) ? numeric : 0
+  }
+  return result
+}
+
 export abstract class ContestService {
   static async list(query: ContestListQuery) {
     const { page, pageSize, skip } = parsePagination(query.page, query.pageSize)
@@ -85,6 +96,51 @@ export abstract class ContestService {
         description: item.problem.description,
         point: item.point,
         order: item.order,
+      })),
+    }
+  }
+
+  static async getRanklist(id: number) {
+    const contest = await prisma.contest.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        participants: {
+          select: {
+            id: true,
+            userId: true,
+            contestId: true,
+            rank: true,
+            totalScore: true,
+            postContestRating: true,
+            scores: true,
+            user: {
+              select: {
+                id: true,
+                nickname: true,
+                realname: true,
+                xsyusername: true,
+              },
+            },
+          },
+          orderBy: [
+            { totalScore: 'desc' },
+            { rank: 'asc' },
+            { userId: 'asc' },
+          ],
+        },
+      },
+    })
+
+    if (!contest) {
+      return status(404, { success: false as const, message: 'Contest not found' })
+    }
+
+    return {
+      success: true as const,
+      data: contest.participants.map((item) => ({
+        ...item,
+        scores: normalizeScores(item.scores),
       })),
     }
   }
