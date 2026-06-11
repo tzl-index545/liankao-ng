@@ -2,7 +2,45 @@
 <template>
   <div class="contest-list-container">
     <div class="header">
-      <h1>比赛列表</h1>
+      <div class="header-top">
+        <h1>比赛列表</h1>
+        <div class="contest-actions">
+          <el-input-number
+            v-model="contestOperationId"
+            class="contest-id-input"
+            :min="1"
+            :precision="0"
+            :step="1"
+            controls-position="right"
+            placeholder="比赛 ID"
+          />
+          <el-input
+            v-model="phpSessionId"
+            class="session-input"
+            type="password"
+            show-password
+            clearable
+            autocomplete="off"
+            placeholder="PHPSESSID"
+          />
+          <el-button
+            type="primary"
+            :disabled="!canCrawlContest || calculatingRating"
+            :loading="crawlingContest"
+            @click="handleCrawlContest"
+          >
+            爬取比赛
+          </el-button>
+          <el-button
+            type="warning"
+            :disabled="!canRunContestOperation || crawlingContest"
+            :loading="calculatingRating"
+            @click="handleCalculateRating"
+          >
+            计算 rating
+          </el-button>
+        </div>
+      </div>
       <div class="sort-bar">
         <el-select class="sort-select" v-model="sortField" @change="handleSortChange" placeholder="排序字段">
           <el-option label="时间" value="time" />
@@ -96,8 +134,8 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElTable, ElTableColumn, ElSelect, ElOption, ElPagination, ElEmpty, ElDialog, ElButton, ElMessage } from 'element-plus'
-import { getContestList, voteContest } from '../api/contest'
+import { ElTable, ElTableColumn, ElSelect, ElOption, ElPagination, ElEmpty, ElDialog, ElButton, ElInput, ElInputNumber, ElMessage, ElMessageBox } from 'element-plus'
+import { calculateContestRating, crawlContest, getContestList, voteContest } from '../api/contest'
 
 const router = useRouter()
 const loading = ref(false)
@@ -112,8 +150,18 @@ const activeContest = ref(null)
 const selectedVoteScore = ref(null)
 const isZeroMode = ref(false)
 const submittingVote = ref(false)
+const contestOperationId = ref(null)
+const phpSessionId = ref('')
+const crawlingContest = ref(false)
+const calculatingRating = ref(false)
 
 const canSubmitVote = computed(() => selectedVoteScore.value !== null)
+const normalizedPhpSessionId = computed(() => phpSessionId.value.trim())
+const canRunContestOperation = computed(() => {
+  const contestId = Number(contestOperationId.value)
+  return Number.isInteger(contestId) && contestId > 0
+})
+const canCrawlContest = computed(() => canRunContestOperation.value && normalizedPhpSessionId.value.length > 0)
 
 const fetchContests = async () => {
   loading.value = true
@@ -247,6 +295,64 @@ const resetVoteState = () => {
   submittingVote.value = false
 }
 
+const getContestOperationId = () => Number(contestOperationId.value)
+
+const handleCrawlContest = async () => {
+  if (!canRunContestOperation.value) {
+    ElMessage.warning('请输入有效的比赛 ID')
+    return
+  }
+  if (!normalizedPhpSessionId.value) {
+    ElMessage.warning('请输入 PHPSESSID')
+    return
+  }
+
+  crawlingContest.value = true
+  try {
+    const res = await crawlContest(getContestOperationId(), normalizedPhpSessionId.value)
+    ElMessage.success(res?.message || '爬取比赛成功')
+    currentPage.value = 1
+    fetchContests()
+  } catch (error) {
+    ElMessage.error(error?.message || '爬取比赛失败')
+  } finally {
+    crawlingContest.value = false
+  }
+}
+
+const handleCalculateRating = async () => {
+  if (!canRunContestOperation.value) {
+    ElMessage.warning('请输入有效的比赛 ID')
+    return
+  }
+
+  const contestId = getContestOperationId()
+  try {
+    await ElMessageBox.confirm(
+      `确认从比赛 ${contestId} 开始重算 rating？`,
+      '计算 rating',
+      {
+        confirmButtonText: '计算',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+  } catch (error) {
+    return
+  }
+
+  calculatingRating.value = true
+  try {
+    const res = await calculateContestRating(contestId)
+    ElMessage.success(res?.message || '计算 rating 成功')
+    fetchContests()
+  } catch (error) {
+    ElMessage.error(error?.message || '计算 rating 失败')
+  } finally {
+    calculatingRating.value = false
+  }
+}
+
 const submitVote = async () => {
   if (!activeContest.value || selectedVoteScore.value === null) return
   submittingVote.value = true
@@ -278,10 +384,35 @@ onMounted(() => {
   margin-bottom: 24px;
 }
 
+.header-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
 .header h1 {
-  margin: 0 0 16px 0;
+  margin: 0;
   font-size: 28px;
   color: #303133;
+}
+
+.contest-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.contest-id-input {
+  width: 150px;
+}
+
+.session-input {
+  width: 220px;
 }
 
 .sort-bar {
@@ -409,5 +540,16 @@ onMounted(() => {
   display: flex;
   justify-content: flex-end;
   gap: 12px;
+}
+
+@media (max-width: 640px) {
+  .contest-list-container {
+    padding: 16px;
+  }
+
+  .contest-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
 }
 </style>

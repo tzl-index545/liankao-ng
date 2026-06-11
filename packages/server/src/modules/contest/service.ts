@@ -50,4 +50,42 @@ export abstract class ContestService {
     }
     return status(200, { success: true as const, data: row })
   }
+
+  static async getProblems(id: number) {
+    const contest = await prisma.contest.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        problems: {
+          select: {
+            point: true,
+            order: true,
+            problem: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+              },
+            },
+          },
+          orderBy: { order: 'asc' },
+        },
+      },
+    })
+
+    if (!contest) {
+      return status(404, { success: false as const, message: 'Contest not found' })
+    }
+
+    return {
+      success: true as const,
+      data: contest.problems.map((item) => ({
+        id: item.problem.id,
+        name: item.problem.name,
+        description: item.problem.description,
+        point: item.point,
+        order: item.order,
+      })),
+    }
+  }
 }

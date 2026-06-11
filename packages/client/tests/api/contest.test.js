@@ -1,6 +1,13 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { getContestList, getContestDetail, getContestProblems, voteContest } from '../../src/api/contest'
+import {
+  calculateContestRating,
+  crawlContest,
+  getContestDetail,
+  getContestList,
+  getContestProblems,
+  voteContest
+} from '../../src/api/contest'
 import request from '../../src/utils/request'
 
 // Mock request module
@@ -239,6 +246,92 @@ describe('Contest API', () => {
       request.mockRejectedValue(mockError)
 
       await expect(voteContest(999, 5)).rejects.toThrow('Failed to vote')
+    })
+  })
+
+  describe('crawlContest', () => {
+    it('should call crawl contest API with correct parameters', async () => {
+      const contestId = 1001
+      const phpSessionId = 'test-session-id'
+      const mockResponse = {
+        success: true,
+        message: 'Contest 1001 crawled.'
+      }
+      request.mockResolvedValue(mockResponse)
+
+      await crawlContest(contestId, phpSessionId)
+
+      expect(request).toHaveBeenCalledWith({
+        url: '/create/contest/crawl',
+        method: 'post',
+        data: {
+          package: {
+            contestId,
+            phpSessionId
+          }
+        },
+        timeout: 120000
+      })
+    })
+
+    it('should return crawl response', async () => {
+      const mockResponse = {
+        success: true,
+        message: 'Contest 1001 crawled.'
+      }
+      request.mockResolvedValue(mockResponse)
+
+      const result = await crawlContest(1001, 'test-session-id')
+
+      expect(result).toEqual(mockResponse)
+    })
+
+    it('should handle crawl API error', async () => {
+      const mockError = new Error('Failed to crawl contest')
+      request.mockRejectedValue(mockError)
+
+      await expect(crawlContest(1001, 'test-session-id')).rejects.toThrow('Failed to crawl contest')
+    })
+  })
+
+  describe('calculateContestRating', () => {
+    it('should call calculate rating API with correct parameters', async () => {
+      const contestId = 1001
+      const mockResponse = {
+        success: true,
+        message: 'Ratings recalculated from contest 1001.'
+      }
+      request.mockResolvedValue(mockResponse)
+
+      await calculateContestRating(contestId)
+
+      expect(request).toHaveBeenCalledWith({
+        url: '/create/contest/rating',
+        method: 'post',
+        data: {
+          package: { contestId }
+        },
+        timeout: 120000
+      })
+    })
+
+    it('should return calculate rating response', async () => {
+      const mockResponse = {
+        success: true,
+        message: 'Ratings recalculated from contest 1001.'
+      }
+      request.mockResolvedValue(mockResponse)
+
+      const result = await calculateContestRating(1001)
+
+      expect(result).toEqual(mockResponse)
+    })
+
+    it('should handle calculate rating API error', async () => {
+      const mockError = new Error('Forbidden: admin permission required')
+      request.mockRejectedValue(mockError)
+
+      await expect(calculateContestRating(1001)).rejects.toThrow('Forbidden: admin permission required')
     })
   })
 })

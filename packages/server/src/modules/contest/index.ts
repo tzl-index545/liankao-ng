@@ -7,6 +7,7 @@ import {
   contestDetailResponse,
   contestListQuery,
   contestPaginatedResponse,
+  contestProblemsResponse,
 } from './model'
 import { ContestService } from './service'
 
@@ -24,6 +25,7 @@ export const contest = new Elysia({
     paginatedResponse: contestPaginatedResponse,
     detailParams: contestDetailParams,
     detailResponse: contestDetailResponse,
+    problemsResponse: contestProblemsResponse,
     apiError: contestApiError,
   })
   .prefix('model', 'contest')
@@ -34,6 +36,17 @@ export const contest = new Elysia({
       summary: '比赛列表（分页）',
       description:
         'page / pageSize 由服务端截断在合法范围内；可选 order: qualities-desc | qualities-asc | desc | asc，asc 和 desc 都是按开始时间排序，默认按开始时间降序（desc）。',
+    },
+  })
+  .get('/:id/problems', ({ params }) => ContestService.getProblems(params.id), {
+    params: contestDetailParams,
+    response: {
+      200: contestProblemsResponse,
+      404: contestApiError,
+    },
+    detail: {
+      summary: '比赛题目列表',
+      description: '按比赛题目顺序返回题目 id、名称、描述、分值和顺序。',
     },
   })
   .get('/:id', ({ params }) => ContestService.getById(params.id), {

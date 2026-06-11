@@ -54,6 +54,19 @@ export const contestDetailResponse = t.Object({
   data: contestEntity,
 })
 
+export const contestProblemItem = t.Object({
+  id: t.Number(),
+  name: t.String(),
+  description: t.String(),
+  point: t.Number(),
+  order: t.Number(),
+})
+
+export const contestProblemsResponse = t.Object({
+  success: t.Literal(true),
+  data: t.Array(contestProblemItem),
+})
+
 export const contestApiError = t.Object({
   success: t.Literal(false),
   message: t.String(),

@@ -36,7 +36,7 @@ const app = new Elysia({ prefix: '/api' })
           { name: 'problem', description: '题目（需登录）' },
           { name: 'vote', description: '投票（需登录）' },
           { name: 'rating', description: '等级分查询' },
-          { name: 'create', description: '创建比赛并计算 rating（需登录）' },
+          { name: 'create', description: '抓取比赛与计算 rating（需登录）' },
           { name: 'user', description: '用户查询' },
         ],
         components: {

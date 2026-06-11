@@ -1,9 +1,28 @@
 import { t } from 'elysia'
 
-export const createContestBody = t.Object({
-  package: t.Object({
-    contestId: t.Number({ minimum: 1 }),
+const contestIdPackage = t.Object({
+  contestId: t.Number({ minimum: 1 }),
+})
+
+const crawlContestPackage = t.Object({
+  contestId: t.Number({ minimum: 1 }),
+  phpSessionId: t.String({
+    minLength: 1,
+    maxLength: 128,
+    pattern: '^[-,a-zA-Z0-9]{1,128}$',
   }),
+})
+
+export const createContestBody = t.Object({
+  package: crawlContestPackage,
+})
+
+export const crawlContestBody = t.Object({
+  package: crawlContestPackage,
+})
+
+export const calculateRatingBody = t.Object({
+  package: contestIdPackage,
 })
 
 export const createContestSuccessResponse = t.Object({
