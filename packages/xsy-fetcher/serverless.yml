@@ -1,0 +1,27 @@
+component: scf
+name: xsy-fetcher
+
+inputs:
+  name: xsy-fetcher
+  region: ap-guangzhou
+  runtime: Nodejs18.15
+  handler: index.main_handler
+  memorySize: 128
+  timeout: 15
+  src:
+    src: ./
+    exclude:
+      - .env
+      - node_modules/**
+      - '*.log'
+  events:
+    - apigw:
+        parameters:
+          protocols:
+            - https
+          environment: release
+          endpoints:
+            - path: /xsy/fetch-html
+              method: POST
+            - path: /healthz
+              method: GET

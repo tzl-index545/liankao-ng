@@ -1,4 +1,5 @@
 import axios from "axios";
+import { fetchXsyHtmlViaFetcher } from "./xsyFetcher";
 
 function isValidPhpSessionId(id: string): boolean {
   return /^[-,a-zA-Z0-9]{1,128}$/.test(id);
@@ -6,6 +7,9 @@ function isValidPhpSessionId(id: string): boolean {
 
 export async function fetchHtml(url: string,phpSessionId: string): Promise<string> {
   if (!url || !isValidPhpSessionId(phpSessionId)) throw new Error('invalid arguments on fetchHtml');  // assert(0)
+  const fetcherHtml = await fetchXsyHtmlViaFetcher(url, phpSessionId);
+  if (fetcherHtml !== null) return fetcherHtml;
+
   const res = await axios.get(url, {
     timeout: 15000,
     responseType: "text",
