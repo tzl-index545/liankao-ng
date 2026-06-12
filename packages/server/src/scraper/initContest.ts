@@ -32,8 +32,8 @@ export async function syncContestInfo(phpSessionId: string, contestId: number) {
   const contestName = rawContestName.split("-").pop()?.trim() || rawContestName;
 
   // 提取时间
-  const startTimeStr = $("#main > center > div > font:nth-child(2) > font:nth-child(3)").text().trim();
-  const endTimeStr = $("#main > center > div > font:nth-child(2) > font:nth-child(5)").text().trim();
+  const startTimeStr = $("font[size=\"4px\"] > font[color=\"#993399\"]:first-of-type").text().trim();
+  const endTimeStr = $("font[size=\"4px\"] > font[color=\"#993399\"]:nth-of-type(2)").text().trim();
   const parseDate = (s: string) => new Date(s.replace(" ", "T") + "+08:00");
 
   // 提取描述 (基于你的选择器：第一道题目的最后一列)
