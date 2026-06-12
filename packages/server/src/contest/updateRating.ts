@@ -21,9 +21,24 @@ type RatedContestant = Contestant & {
   newRating: number;
 };
 
+type ParticipationRatingUpdate = {
+  participationId: number;
+  userId: number;
+  previousRank: number;
+  previousPostContestRating: number | null;
+  rank: number;
+  newRating: number;
+};
+
+type ContestRatingInput = {
+  contestants: Contestant[];
+  ignoredContestants: ParticipationRatingUpdate[];
+};
+
 type ContestRatingResult = {
   contestId: number;
   contestants: RatedContestant[];
+  ignoredContestants: ParticipationRatingUpdate[];
 };
 
 function eloWinProbability(ra: number, rb: number): number {
@@ -176,7 +191,7 @@ async function loadContests(): Promise<Array<{ id: number; endTime: Date }>> {
 async function loadContestantsFromDb(
   contestId: number,
   ratings: Map<number, number>,
-): Promise<Contestant[]> {
+): Promise<ContestRatingInput> {
   const rows = await prisma.participation.findMany({
     where: { contestId },
     select: {
@@ -188,9 +203,11 @@ async function loadContestantsFromDb(
     },
   });
 
-  const ranks = rankFromScores(rows.map((row) => ({ userId: row.userId, totalScore: row.totalScore })));
+  const ratedRows = rows.filter((row) => row.totalScore !== 0);
+  const ignoredRows = rows.filter((row) => row.totalScore === 0);
+  const ranks = rankFromScores(ratedRows.map((row) => ({ userId: row.userId, totalScore: row.totalScore })));
 
-  return rows.map((row) => ({
+  const contestants = ratedRows.map((row) => ({
     participationId: row.id,
     userId: row.userId,
     previousRank: row.rank,
@@ -202,6 +219,20 @@ async function loadContestantsFromDb(
     seed: 0,
     delta: 0,
   }));
+
+  const ignoredContestants = ignoredRows.map((row) => ({
+    participationId: row.id,
+    userId: row.userId,
+    previousRank: row.rank,
+    previousPostContestRating: row.postContestRating,
+    rank: row.rank,
+    newRating: ratings.get(row.userId) ?? INITIAL_RATING,
+  }));
+
+  return {
+    contestants,
+    ignoredContestants,
+  };
 }
 
 async function createBatch(
@@ -229,9 +260,10 @@ function chunkArray<T>(items: T[], size: number): T[][] {
 
 function calculateContestResult(
   contestId: number,
-  contestants: Contestant[],
+  input: ContestRatingInput,
   ratings: Map<number, number>,
 ): ContestRatingResult {
+  const contestants = input.contestants;
   processContestants(contestants);
 
   const ratedContestants = contestants.map((contestant) => {
@@ -246,12 +278,13 @@ function calculateContestResult(
   return {
     contestId,
     contestants: ratedContestants,
+    ignoredContestants: input.ignoredContestants,
   };
 }
 
 async function updateParticipations(
   tx: Prisma.TransactionClient,
-  contestants: RatedContestant[],
+  contestants: ParticipationRatingUpdate[],
 ): Promise<void> {
   for (const chunk of chunkArray(contestants, WRITE_CHUNK_SIZE)) {
     if (chunk.length === 0) continue;
@@ -299,7 +332,7 @@ async function persistRatingResults(
 ): Promise<void> {
   const participationChanges: Prisma.RatingParticipationChangeCreateManyInput[] = [];
   const userChanges: Prisma.RatingUserChangeCreateManyInput[] = [];
-  const participationUpdates: RatedContestant[] = [];
+  const participationUpdates: ParticipationRatingUpdate[] = [];
   const finalUserRatings = new Map<number, number>();
 
   for (const result of results) {
@@ -325,6 +358,21 @@ async function persistRatingResults(
 
       participationUpdates.push(c);
       finalUserRatings.set(c.userId, c.newRating);
+    }
+
+    for (const c of result.ignoredContestants) {
+      participationChanges.push({
+        batchId,
+        contestId: result.contestId,
+        participationId: c.participationId,
+        userId: c.userId,
+        beforeRank: c.previousRank,
+        afterRank: c.rank,
+        beforePostContestRating: c.previousPostContestRating,
+        afterPostContestRating: c.newRating,
+      });
+
+      participationUpdates.push(c);
     }
   }
 
@@ -357,18 +405,18 @@ async function recalculateRatingsFromContest(contestId: number): Promise<void> {
 
   for (let i = 0; i < startIndex; i++) {
     const contest = contests[i];
-    const contestants = await loadContestantsFromDb(contest.id, ratings);
-    if (contestants.length === 0) continue;
-    calculateContestResult(contest.id, contestants, ratings);
+    const input = await loadContestantsFromDb(contest.id, ratings);
+    if (input.contestants.length === 0) continue;
+    calculateContestResult(contest.id, input, ratings);
   }
 
   const results: ContestRatingResult[] = [];
   for (let i = startIndex; i < contests.length; i++) {
     const contest = contests[i];
-    const contestants = await loadContestantsFromDb(contest.id, ratings);
-    if (contestants.length === 0) continue;
+    const input = await loadContestantsFromDb(contest.id, ratings);
+    if (input.contestants.length === 0 && input.ignoredContestants.length === 0) continue;
 
-    results.push(calculateContestResult(contest.id, contestants, ratings));
+    results.push(calculateContestResult(contest.id, input, ratings));
   }
 
   await prisma.$transaction(async (tx: Prisma.TransactionClient) => {

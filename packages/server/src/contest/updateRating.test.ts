@@ -148,6 +148,32 @@ async function resetData(): Promise<void> {
   });
 }
 
+async function loadUserRatingSnapshot(userIds: number[]): Promise<Array<{ id: number; rating: number }>> {
+  return prisma.user.findMany({
+    where: { id: { in: userIds } },
+    select: { id: true, rating: true },
+    orderBy: { id: 'asc' },
+  });
+}
+
+async function loadUserChangeSnapshot(userIds: number[]): Promise<Array<{
+  contestId: number;
+  userId: number;
+  beforeRating: number;
+  afterRating: number;
+}>> {
+  return prisma.ratingUserChange.findMany({
+    where: { userId: { in: userIds } },
+    select: {
+      contestId: true,
+      userId: true,
+      beforeRating: true,
+      afterRating: true,
+    },
+    orderBy: [{ contestId: 'asc' }, { userId: 'asc' }],
+  });
+}
+
 describe('recalculateRatingsFromContest', () => {
   beforeAll(async () => {
     tempDir = mkdtempSync(join(tmpdir(), 'lkrate-rating-'));
@@ -249,5 +275,55 @@ describe('recalculateRatingsFromContest', () => {
       });
       expect(user.rating).toBe(latestChange.afterRating);
     }
+  });
+
+  it('ignores zero-score users while keeping their post-contest rating at the pre-contest value', async () => {
+    await recalculateRatingsFromContest(101);
+    const baselineRatings = await loadUserRatingSnapshot([1, 2, 3]);
+    const baselineChanges = await loadUserChangeSnapshot([1, 2, 3]);
+
+    await resetData();
+    // Stale user rating verifies zero-score rows do not write User.rating.
+    await prisma.user.create({
+      data: { id: 4, xsyusername: 'u4', nickname: 'u4', realname: 'User 4', rating: 1700 },
+    });
+    await prisma.participation.create({
+      data: {
+        id: 7,
+        userId: 4,
+        contestId: 101,
+        totalScore: 0,
+        rank: 4,
+        postContestRating: 1777,
+        scores: {},
+      },
+    });
+
+    await recalculateRatingsFromContest(101);
+
+    expect(await loadUserRatingSnapshot([1, 2, 3])).toEqual(baselineRatings);
+    expect(await loadUserChangeSnapshot([1, 2, 3])).toEqual(baselineChanges);
+    expect(await prisma.ratingUserChange.count()).toBe(6);
+    expect(await prisma.ratingUserChange.count({ where: { userId: 4 } })).toBe(0);
+
+    const zeroScoreUser = await prisma.user.findUniqueOrThrow({
+      where: { id: 4 },
+      select: { rating: true },
+    });
+    expect(zeroScoreUser.rating).toBe(1700);
+
+    const zeroScoreParticipation = await prisma.participation.findUniqueOrThrow({
+      where: { id: 7 },
+      select: { rank: true, postContestRating: true },
+    });
+    expect(zeroScoreParticipation).toEqual({ rank: 4, postContestRating: 1500 });
+
+    const zeroScoreParticipationChange = await prisma.ratingParticipationChange.findFirstOrThrow({
+      where: { participationId: 7 },
+    });
+    expect(zeroScoreParticipationChange.beforeRank).toBe(4);
+    expect(zeroScoreParticipationChange.afterRank).toBe(4);
+    expect(zeroScoreParticipationChange.beforePostContestRating).toBe(1777);
+    expect(zeroScoreParticipationChange.afterPostContestRating).toBe(1500);
   });
 });
