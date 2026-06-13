@@ -43,6 +43,7 @@ function createSchema(dbPath: string): void {
       "contestId" INTEGER NOT NULL,
       "totalScore" INTEGER NOT NULL DEFAULT 0,
       "rank" INTEGER NOT NULL,
+      "preContestRating" INTEGER,
       "postContestRating" INTEGER,
       "scores" JSONB NOT NULL,
       CONSTRAINT "Participation_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
@@ -245,7 +246,7 @@ describe('recalculateRatingsFromContest', () => {
 
     const firstContestRanks = await prisma.participation.findMany({
       where: { contestId: 101 },
-      select: { userId: true, rank: true, postContestRating: true },
+      select: { userId: true, rank: true, preContestRating: true, postContestRating: true },
       orderBy: { userId: 'asc' },
     });
 
@@ -254,6 +255,7 @@ describe('recalculateRatingsFromContest', () => {
       { userId: 2, rank: 1 },
       { userId: 3, rank: 3 },
     ]);
+    expect(firstContestRanks.every((row) => row.preContestRating === 1500)).toBe(true);
     expect(firstContestRanks.every((row) => row.postContestRating !== null)).toBe(true);
 
     const preservedBeforeState = await prisma.ratingParticipationChange.findFirstOrThrow({
@@ -294,6 +296,7 @@ describe('recalculateRatingsFromContest', () => {
         contestId: 101,
         totalScore: 0,
         rank: 4,
+        preContestRating: 1666,
         postContestRating: 1777,
         scores: {},
       },
@@ -314,9 +317,9 @@ describe('recalculateRatingsFromContest', () => {
 
     const zeroScoreParticipation = await prisma.participation.findUniqueOrThrow({
       where: { id: 7 },
-      select: { rank: true, postContestRating: true },
+      select: { rank: true, preContestRating: true, postContestRating: true },
     });
-    expect(zeroScoreParticipation).toEqual({ rank: 4, postContestRating: 1500 });
+    expect(zeroScoreParticipation).toEqual({ rank: 4, preContestRating: 1500, postContestRating: 1500 });
 
     const zeroScoreParticipationChange = await prisma.ratingParticipationChange.findFirstOrThrow({
       where: { participationId: 7 },

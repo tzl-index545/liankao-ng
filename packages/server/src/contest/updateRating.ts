@@ -27,6 +27,7 @@ type ParticipationRatingUpdate = {
   previousRank: number;
   previousPostContestRating: number | null;
   rank: number;
+  preContestRating: number;
   newRating: number;
 };
 
@@ -227,6 +228,7 @@ async function loadContestantsFromDb(
     previousRank: row.rank,
     previousPostContestRating: row.postContestRating,
     rank: row.rank,
+    preContestRating: ratings.get(row.userId) ?? INITIAL_RATING,
     newRating: ratings.get(row.userId) ?? INITIAL_RATING,
   }));
 
@@ -297,6 +299,10 @@ async function updateParticipations(
           ${Prisma.join(chunk.map((c) => Prisma.sql`WHEN ${c.participationId} THEN ${c.rank}`), ' ')}
           ELSE "rank"
         END,
+        "preContestRating" = CASE "id"
+          ${Prisma.join(chunk.map((c) => Prisma.sql`WHEN ${c.participationId} THEN ${c.preContestRating}`), ' ')}
+          ELSE "preContestRating"
+        END,
         "postContestRating" = CASE "id"
           ${Prisma.join(chunk.map((c) => Prisma.sql`WHEN ${c.participationId} THEN ${c.newRating}`), ' ')}
           ELSE "postContestRating"
@@ -357,7 +363,10 @@ async function persistRatingResults(
         afterRating: c.newRating,
       });
 
-      participationUpdates.push(c);
+      participationUpdates.push({
+        ...c,
+        preContestRating: c.rating,
+      });
       finalUserRatings.set(c.userId, c.newRating);
     }
 

@@ -107,6 +107,8 @@ model Participation {
   totalScore        Int  @default(0)
   /// 本场比赛排名（赛后确定）
   rank              Int
+  /// 比赛开始前的 rating（即本次比赛 rating 变化的起点）
+  preContestRating  Int?
   /// 比赛结束后的新 rating（即本次比赛后用户等级分变化结果）
   postContestRating Int?
   /// 每题得分明细，JSON 格式，键为题目ID，值为得分，例如 { "101": 100, "102": 200 }

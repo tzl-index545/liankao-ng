@@ -8,7 +8,6 @@ packages/server/data.db
 .env
 packages/server/.env
 /prisma/migrations/
-packages/server/prisma/migrations/
 
 # dependencies
 
