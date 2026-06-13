@@ -80,6 +80,7 @@ export const contestRanklistItem = t.Object({
   contestId: t.Number(),
   rank: t.Number(),
   totalScore: t.Number(),
+  preContestRating: t.Nullable(t.Number()),
   postContestRating: t.Nullable(t.Number()),
   scores: t.Record(t.String(), t.Number()),
   user: contestRanklistUser,

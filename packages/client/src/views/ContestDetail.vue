@@ -76,6 +76,11 @@
                 {{ formatProblemScore(row.scores, problem.id) }}
               </template>
             </el-table-column>
+            <el-table-column label="Δ" width="90" align="center">
+              <template #default="{ row }">
+                <span :class="ratingDeltaClass(row)">{{ formatRatingDelta(row) }}</span>
+              </template>
+            </el-table-column>
           </el-table>
           <el-empty v-if="!ranklistLoading && ranklist.length === 0" description="暂无排行榜" />
         </div>
@@ -181,6 +186,31 @@ const formatProblemScore = (scores, problemId) => {
   return numeric
 }
 
+const toRatingNumber = (value) => {
+  if (value === null || value === undefined || value === '') return null
+  const numeric = Number(value)
+  return Number.isFinite(numeric) ? numeric : null
+}
+
+const getRatingDelta = (row) => {
+  const preRating = toRatingNumber(row?.preContestRating)
+  const postRating = toRatingNumber(row?.postContestRating)
+  if (preRating === null || postRating === null) return 0
+  return postRating - preRating
+}
+
+const formatRatingDelta = (row) => {
+  const delta = getRatingDelta(row)
+  return delta > 0 ? `+${delta}` : String(delta)
+}
+
+const ratingDeltaClass = (row) => {
+  const delta = getRatingDelta(row)
+  if (delta > 0) return 'rating-delta rating-delta-positive'
+  if (delta < 0) return 'rating-delta rating-delta-negative'
+  return 'rating-delta rating-delta-zero'
+}
+
 onMounted(() => {
   fetchContestDetail()
   fetchContestProblems()
@@ -273,5 +303,21 @@ onMounted(() => {
   text-align: left;
   line-height: 1.4;
   font-weight: 600;
+}
+
+.rating-delta {
+  font-weight: 600;
+}
+
+.rating-delta-positive {
+  color: #67c23a;
+}
+
+.rating-delta-negative {
+  color: #f56c6c;
+}
+
+.rating-delta-zero {
+  color: #909399;
 }
 </style>

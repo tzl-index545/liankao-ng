@@ -90,7 +90,7 @@ describe('ProblemItem Component', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('质量: 4.50')
+    expect(wrapper.text()).toContain('质量: 👑4.50')
   })
 
   it('should not display quality when not available', () => {

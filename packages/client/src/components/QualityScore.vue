@@ -44,7 +44,7 @@ const scoreStyle = computed(() => {
   }
   if (numericScore.value > 4.0) {
     return {
-      color: '#ffdf00'
+      color: '#e3b34c'
     }
   }
   const clamped = Math.min(4, Math.max(1, numericScore.value))

@@ -221,6 +221,7 @@ describe('Contest API', () => {
             contestId,
             rank: 1,
             totalScore: 200,
+            preContestRating: 1500,
             postContestRating: 1510,
             scores: {
               1: 100,
@@ -256,6 +257,7 @@ describe('Contest API', () => {
             contestId,
             rank: 1,
             totalScore: 200,
+            preContestRating: null,
             postContestRating: null,
             scores: {
               1: 100,

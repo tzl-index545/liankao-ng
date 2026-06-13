@@ -131,7 +131,7 @@ describe('ContestCard Component', () => {
       }
     })
 
-    expect(wrapper.text()).toContain('质量评分: 4.50')
+    expect(wrapper.text()).toContain('质量评分: 👑4.50')
   })
 
   it('should not display quality rating when not available', () => {

@@ -22,6 +22,40 @@ function normalizeScores(scores: Prisma.JsonValue): Record<string, number> {
   return result
 }
 
+async function loadPreContestRatings(contestId: number, userIds: number[]): Promise<Map<number, number>> {
+  if (userIds.length === 0) return new Map()
+
+  const changes = await prisma.ratingUserChange.findMany({
+    where: {
+      contestId,
+      userId: { in: userIds },
+      batch: {
+        completedAt: { not: null },
+        revertedAt: null,
+      },
+    },
+    select: {
+      id: true,
+      batchId: true,
+      userId: true,
+      beforeRating: true,
+    },
+    orderBy: [
+      { batch: { completedAt: 'desc' } },
+      { batchId: 'desc' },
+      { id: 'desc' },
+    ],
+  })
+
+  const ratings = new Map<number, number>()
+  for (const change of changes) {
+    if (!ratings.has(change.userId)) {
+      ratings.set(change.userId, change.beforeRating)
+    }
+  }
+  return ratings
+}
+
 export abstract class ContestService {
   static async list(query: ContestListQuery) {
     const { page, pageSize, skip } = parsePagination(query.page, query.pageSize)
@@ -136,10 +170,16 @@ export abstract class ContestService {
       return status(404, { success: false as const, message: 'Contest not found' })
     }
 
+    const preContestRatings = await loadPreContestRatings(
+      id,
+      contest.participants.map((item) => item.userId),
+    )
+
     return {
       success: true as const,
       data: contest.participants.map((item) => ({
         ...item,
+        preContestRating: preContestRatings.get(item.userId) ?? null,
         scores: normalizeScores(item.scores),
       })),
     }

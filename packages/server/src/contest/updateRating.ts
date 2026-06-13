@@ -76,21 +76,22 @@ function reassignRanks(contestants: Contestant[]): void {
   }
 }
 
-function getSeed(contestants: Contestant[], rating: number): number {
+function getSeed(contestants: Contestant[], rating: number,contestant: Contestant): number {
   let result = 1;
   for (const other of contestants) {
+    if (other === contestant)  continue ;
     result += eloWinProbability(other.rating, rating);
   }
   return result;
 }
 
-function getRatingToRank(contestants: Contestant[], targetRank: number): number {
+function getRatingToRank(contestants: Contestant[], targetRank: number, contestant: Contestant): number {
   let left = 1;
   let right = 8000;
 
   while (right - left > 1) {
     const mid = Math.floor((left + right) / 2);
-    if (getSeed(contestants, mid) < targetRank) {
+    if (getSeed(contestants, mid, contestant) < targetRank) {
       right = mid;
     } else {
       left = mid;
@@ -135,7 +136,7 @@ function processContestants(contestants: Contestant[]): void {
 
   for (const contestant of contestants) {
     const midRank = Math.sqrt(contestant.rank * contestant.seed);
-    contestant.needRating = getRatingToRank(contestants, midRank);
+    contestant.needRating = getRatingToRank(contestants, midRank, contestant);
     contestant.delta = Math.trunc((contestant.needRating - contestant.rating) / 2);
   }
 
