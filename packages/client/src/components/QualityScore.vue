@@ -23,7 +23,7 @@ const numericScore = computed(() => {
 const formattedScore = computed(() => {
   if (numericScore.value === null) return '-'
   const value = numericScore.value.toFixed(2)
-  if (numericScore.value < 1.0) return `💩 ${value}`
+  if (numericScore.value < 1.0) return `💩${value}`
   return value
 })
 
