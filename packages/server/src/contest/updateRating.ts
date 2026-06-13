@@ -373,6 +373,7 @@ async function persistRatingResults(
       });
 
       participationUpdates.push(c);
+      finalUserRatings.set(c.userId, c.newRating);
     }
   }
 

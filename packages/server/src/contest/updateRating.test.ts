@@ -277,13 +277,13 @@ describe('recalculateRatingsFromContest', () => {
     }
   });
 
-  it('ignores zero-score users while keeping their post-contest rating at the pre-contest value', async () => {
+  it('ignores zero-score users while writing their carried rating back to the user table', async () => {
     await recalculateRatingsFromContest(101);
     const baselineRatings = await loadUserRatingSnapshot([1, 2, 3]);
     const baselineChanges = await loadUserChangeSnapshot([1, 2, 3]);
 
     await resetData();
-    // Stale user rating verifies zero-score rows do not write User.rating.
+    // Stale user rating verifies zero-score rows are corrected without rating changes.
     await prisma.user.create({
       data: { id: 4, xsyusername: 'u4', nickname: 'u4', realname: 'User 4', rating: 1700 },
     });
@@ -310,7 +310,7 @@ describe('recalculateRatingsFromContest', () => {
       where: { id: 4 },
       select: { rating: true },
     });
-    expect(zeroScoreUser.rating).toBe(1700);
+    expect(zeroScoreUser.rating).toBe(1500);
 
     const zeroScoreParticipation = await prisma.participation.findUniqueOrThrow({
       where: { id: 7 },
