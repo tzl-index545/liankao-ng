@@ -182,27 +182,17 @@ const getQualitiesStyle = (qualities) => {
 
   if (numeric < 1.0) {
     return {
-      background: 'linear-gradient(135deg, #f2e7df 0%, #b08968 52%, #7f5539 100%)',
-      border: '1px solid #8b5e3c',
-      color: '#4a2d18',
-      boxShadow: 'inset 0 0 0 1px rgba(127, 85, 57, 0.18)'
+      color: '#7a4a20'
     }
   }
 
   const clamped = Math.min(5, Math.max(1, numeric))
   const ratio = (clamped - 1) / 4
-  const lightness = 94 - ratio * 54
-  const saturation = 34 + ratio * 62
-  const midLightness = Math.max(26, lightness - (20 + ratio * 6))
-  const endLightness = Math.max(18, lightness - (32 + ratio * 8))
-  const textLightness = Math.max(14, 32 - ratio * 14)
-  const borderLightness = Math.max(20, 62 - ratio * 34)
+  const lightness = 58 - ratio * 30
+  const saturation = 46 + ratio * 38
 
   return {
-    background: `linear-gradient(135deg, hsl(125 ${saturation}% ${lightness}%) 0%, hsl(125 ${Math.min(100, saturation + 10)}% ${midLightness}%) 52%, hsl(125 ${Math.min(100, saturation + 14)}% ${endLightness}%) 100%)`,
-    border: `1px solid hsl(125 ${Math.min(95, saturation + 6)}% ${borderLightness}%)`,
-    color: `hsl(125 ${Math.min(100, saturation + 12)}% ${textLightness}%)`,
-    boxShadow: `inset 0 0 0 1px hsla(125, ${Math.min(100, saturation + 12)}%, ${Math.max(18, borderLightness - 10)}%, 0.12)`
+    color: `hsl(132 ${saturation}% ${lightness}%)`
   }
 }
 
@@ -319,23 +309,20 @@ onMounted(() => {
   display: inline-block;
   min-width: 92px;
   text-align: center;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 12px;
-  border: 1px solid transparent;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
 .qualities-normal {
-  color: #0f5132;
+  color: #20984a;
 }
 
 .qualities-low {
-  color: #4e342e;
+  color: #7a4a20;
 }
 
 .qualities-null {
   color: #606266;
-  background: #f2f6fc;
 }
 
 .vote-dialog-content {

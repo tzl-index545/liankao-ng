@@ -29,6 +29,12 @@
     <div class="main-content">
       <router-view />
     </div>
+    <footer class="app-footer">
+      <span>Made with ❤️ by index545</span>
+      <a href="https://github.com/tzl-index545/liankao-ng" target="_blank" rel="noopener noreferrer">
+        github.com/tzl-index545/liankao-ng
+      </a>
+    </footer>
   </div>
 </template>
 
@@ -54,6 +60,8 @@ const handleLogout = () => {
 .app-container {
   min-height: 100vh;
   background: #f5f7fb;
+  display: flex;
+  flex-direction: column;
 }
 
 .navbar {
@@ -96,5 +104,26 @@ const handleLogout = () => {
 
 .main-content {
   padding: 24px;
+  flex: 1;
+}
+
+.app-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 18px 24px 24px;
+  color: #606266;
+  font-size: 14px;
+}
+
+.app-footer a {
+  color: #409eff;
+  text-decoration: none;
+}
+
+.app-footer a:hover {
+  text-decoration: underline;
 }
 </style>
