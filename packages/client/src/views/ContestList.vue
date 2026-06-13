@@ -71,9 +71,7 @@
         </el-table-column>
         <el-table-column label="Qualities" width="220">
           <template #default="{ row }">
-            <span class="qualities-badge" :class="getQualitiesClass(row.qualities)" :style="getQualitiesStyle(row.qualities)">
-              {{ formatQualities(row.qualities) }}
-            </span>
+            <QualityScore :value="row.qualities" />
           </template>
         </el-table-column>
         <el-table-column label="Vote" width="150" align="center">
@@ -136,6 +134,7 @@ import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElTable, ElTableColumn, ElSelect, ElOption, ElPagination, ElEmpty, ElDialog, ElButton, ElInput, ElInputNumber, ElMessage, ElMessageBox } from 'element-plus'
 import { calculateContestRating, crawlContest, getContestList, voteContest } from '../api/contest'
+import QualityScore from '../components/QualityScore.vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -212,59 +211,6 @@ const formatDateTime = (input) => {
 
 const formatTimeRange = (startTime, endTime) => {
   return `${formatDateTime(startTime)} ~ ${formatDateTime(endTime)}`
-}
-
-const formatQualities = (qualities) => {
-  if (qualities === null || qualities === undefined) return '-'
-  const numeric = Number(qualities)
-  if (Number.isNaN(numeric)) return '-'
-  const value = numeric.toFixed(2)
-  if (numeric < 1.0) {
-    return `💩 ${value}`
-  }
-  return value
-}
-
-const getQualitiesClass = (qualities) => {
-  if (qualities === null || qualities === undefined) return 'qualities-null'
-  const numeric = Number(qualities)
-  if (Number.isNaN(numeric)) return 'qualities-null'
-  if (numeric < 1.0) return 'qualities-low'
-  return 'qualities-normal'
-}
-
-const getQualitiesStyle = (qualities) => {
-  if (qualities === null || qualities === undefined) return {}
-  const numeric = Number(qualities)
-  if (Number.isNaN(numeric)) return {}
-
-  if (numeric < 1.0) {
-    // 低分统一棕色系，符合“棕色部分可以”的要求
-    return {
-      background: 'linear-gradient(135deg, #f2e7df 0%, #b08968 52%, #7f5539 100%)',
-      border: '1px solid #8b5e3c',
-      color: '#4a2d18',
-      boxShadow: 'inset 0 0 0 1px rgba(127, 85, 57, 0.18)'
-    }
-  }
-
-  // 以 1~5 映射绿色强度：越高越绿
-  const clamped = Math.min(5, Math.max(1, numeric))
-  const ratio = (clamped - 1) / 4
-  // 增强跨度：低分偏浅灰绿，高分偏深翠绿
-  const lightness = 94 - ratio * 54
-  const saturation = 34 + ratio * 62
-  const midLightness = Math.max(26, lightness - (20 + ratio * 6))
-  const endLightness = Math.max(18, lightness - (32 + ratio * 8))
-  const textLightness = Math.max(14, 32 - ratio * 14)
-  const borderLightness = Math.max(20, 62 - ratio * 34)
-
-  return {
-    background: `linear-gradient(135deg, hsl(125 ${saturation}% ${lightness}%) 0%, hsl(125 ${Math.min(100, saturation + 10)}% ${midLightness}%) 52%, hsl(125 ${Math.min(100, saturation + 14)}% ${endLightness}%) 100%)`,
-    border: `1px solid hsl(125 ${Math.min(95, saturation + 6)}% ${borderLightness}%)`,
-    color: `hsl(125 ${Math.min(100, saturation + 12)}% ${textLightness}%)`,
-    boxShadow: `inset 0 0 0 1px hsla(125, ${Math.min(100, saturation + 12)}%, ${Math.max(18, borderLightness - 10)}%, 0.12)`
-  }
 }
 
 const goToContestDetail = (id) => {
@@ -456,29 +402,6 @@ onMounted(() => {
 .contest-time {
   color: #909399;
   font-size: 13px;
-}
-
-.qualities-badge {
-  display: inline-block;
-  min-width: 92px;
-  text-align: center;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 12px;
-  border: 1px solid transparent;
-}
-
-.qualities-normal {
-  color: #0f5132;
-}
-
-.qualities-low {
-  color: #4e342e;
-}
-
-.qualities-null {
-  color: #606266;
-  background: #f2f6fc;
 }
 
 .vote-dialog-content {

@@ -9,9 +9,9 @@
         <el-icon><TrendCharts /></el-icon>
         <span>难度: {{ problem.difficulties.toFixed(1) }}</span>
       </div>
-      <div class="info-item" v-if="problem.qualities">
+      <div class="info-item" v-if="problem.qualities !== null && problem.qualities !== undefined">
         <el-icon><Star /></el-icon>
-        <span>质量: {{ problem.qualities.toFixed(1) }}</span>
+        <span>质量: <QualityScore :value="problem.qualities" /></span>
       </div>
     </div>
     <div class="problem-description">{{ problem.description }}</div>
@@ -31,6 +31,7 @@ import { useRouter } from 'vue-router'
 import { ElCard, ElIcon, ElMessage } from 'element-plus'
 import { TrendCharts, Star } from '@element-plus/icons-vue'
 import StarRating from './StarRating.vue'
+import QualityScore from './QualityScore.vue'
 import { voteProblem } from '../api/problem'
 
 const props = defineProps({

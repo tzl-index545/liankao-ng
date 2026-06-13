@@ -17,9 +17,9 @@
           <el-icon><Clock /></el-icon>
           <span>结束时间: {{ formatDate(contest.endTime) }}</span>
         </div>
-        <div class="info-item" v-if="contest.qualities">
+        <div class="info-item" v-if="contest.qualities !== null && contest.qualities !== undefined">
           <el-icon><Star /></el-icon>
-          <span>质量评分: {{ contest.qualities.toFixed(1) }}</span>
+          <span>质量评分: <QualityScore :value="contest.qualities" /></span>
         </div>
       </div>
       <div class="contest-description">
@@ -90,6 +90,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElCard, ElTag, ElIcon, ElTable, ElTableColumn, ElButton, ElEmpty, ElMessage } from 'element-plus'
 import { Clock, Star } from '@element-plus/icons-vue'
 import StarRating from '../components/StarRating.vue'
+import QualityScore from '../components/QualityScore.vue'
 import { getContestDetail, getContestProblems, getContestRanklist, voteContest } from '../api/contest'
 
 const route = useRoute()

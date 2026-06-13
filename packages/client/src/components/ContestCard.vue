@@ -10,9 +10,9 @@
         <el-icon><Clock /></el-icon>
         <span>{{ formatDate(contest.startTime) }} - {{ formatDate(contest.endTime) }}</span>
       </div>
-      <div class="info-item" v-if="contest.qualities">
+      <div class="info-item" v-if="contest.qualities !== null && contest.qualities !== undefined">
         <el-icon><Star /></el-icon>
-        <span>质量评分: {{ contest.qualities.toFixed(1) }}</span>
+        <span>质量评分: <QualityScore :value="contest.qualities" /></span>
       </div>
     </div>
     <div class="contest-description">{{ contest.description }}</div>
@@ -27,11 +27,12 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElCard, ElTag, ElIcon, ElMessage } from 'element-plus'
 import { Clock, Star } from '@element-plus/icons-vue'
 import StarRating from './StarRating.vue'
+import QualityScore from './QualityScore.vue'
 import { voteContest } from '../api/contest'
 
 const props = defineProps({

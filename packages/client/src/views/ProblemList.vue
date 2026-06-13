@@ -34,9 +34,7 @@
         </el-table-column>
         <el-table-column label="Qualities" width="220">
           <template #default="{ row }">
-            <span class="qualities-badge" :class="getQualitiesClass(row.qualities)" :style="getQualitiesStyle(row.qualities)">
-              {{ formatQualities(row.qualities) }}
-            </span>
+            <QualityScore :value="row.qualities" />
           </template>
         </el-table-column>
         <el-table-column label="Vote" width="150" align="center">
@@ -99,6 +97,7 @@ import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElTable, ElTableColumn, ElSelect, ElOption, ElPagination, ElEmpty, ElDialog, ElButton, ElMessage } from 'element-plus'
 import { getProblemList, voteProblem } from '../api/problem'
+import QualityScore from '../components/QualityScore.vue'
 
 const router = useRouter()
 const loading = ref(false)
@@ -156,44 +155,6 @@ const handleSizeChange = () => {
 
 const handlePageChange = () => {
   fetchProblems()
-}
-
-const formatQualities = (qualities) => {
-  if (qualities === null || qualities === undefined) return '-'
-  const numeric = Number(qualities)
-  if (Number.isNaN(numeric)) return '-'
-  const value = numeric.toFixed(2)
-  if (numeric < 1.0) return `💩 ${value}`
-  return value
-}
-
-const getQualitiesClass = (qualities) => {
-  if (qualities === null || qualities === undefined) return 'qualities-null'
-  const numeric = Number(qualities)
-  if (Number.isNaN(numeric)) return 'qualities-null'
-  if (numeric < 1.0) return 'qualities-low'
-  return 'qualities-normal'
-}
-
-const getQualitiesStyle = (qualities) => {
-  if (qualities === null || qualities === undefined) return {}
-  const numeric = Number(qualities)
-  if (Number.isNaN(numeric)) return {}
-
-  if (numeric < 1.0) {
-    return {
-      color: '#7a4a20'
-    }
-  }
-
-  const clamped = Math.min(5, Math.max(1, numeric))
-  const ratio = (clamped - 1) / 4
-  const lightness = 58 - ratio * 30
-  const saturation = 46 + ratio * 38
-
-  return {
-    color: `hsl(132 ${saturation}% ${lightness}%)`
-  }
 }
 
 const goToProblemDetail = (id) => {
@@ -303,26 +264,6 @@ onMounted(() => {
   color: #909399;
   font-size: 13px;
   line-height: 1.45;
-}
-
-.qualities-badge {
-  display: inline-block;
-  min-width: 92px;
-  text-align: center;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.qualities-normal {
-  color: #20984a;
-}
-
-.qualities-low {
-  color: #7a4a20;
-}
-
-.qualities-null {
-  color: #606266;
 }
 
 .vote-dialog-content {
