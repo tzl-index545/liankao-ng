@@ -24,6 +24,7 @@ const formattedScore = computed(() => {
   if (numericScore.value === null) return '-'
   const value = numericScore.value.toFixed(2)
   if (numericScore.value < 1.0) return `💩${value}`
+  if (numericScore.value > 4.0) return `👑${value}`
   return value
 })
 
@@ -41,9 +42,13 @@ const scoreStyle = computed(() => {
       color: '#7a4a20'
     }
   }
-
-  const clamped = Math.min(5, Math.max(1, numericScore.value))
-  const ratio = (clamped - 1) / 4
+  if (numericScore.value > 4.0) {
+    return {
+      color: '#ffdf00'
+    }
+  }
+  const clamped = Math.min(4, Math.max(1, numericScore.value))
+  const ratio = (clamped - 1) / 3
   const lightness = 58 - ratio * 30
   const saturation = 46 + ratio * 38
 
