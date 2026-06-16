@@ -146,20 +146,21 @@ function processContestants(contestants: Contestant[]): void {
   {
     let sum = 0;
     for (const c of contestants) sum += c.delta;
-    const inc = Math.trunc(-sum / contestants.length) - 1;
+    const inc = Math.round(-sum / contestants.length);
     for (const c of contestants) c.delta += inc;
   }
 
-  {
-    const zeroSumCount = Math.min(
-      Math.trunc(4 * Math.round(Math.sqrt(contestants.length))),
-      contestants.length,
-    );
-    let sum = 0;
-    for (let i = 0; i < zeroSumCount; i++) sum += contestants[i].delta;
-    const inc = Math.min(Math.max(Math.trunc(-sum / zeroSumCount), -10), 0);
-    for (const c of contestants) c.delta += inc;
-  }
+  // Make it zero-sum
+  // {
+  //   const zeroSumCount = Math.min(
+  //     Math.trunc(4 * Math.round(Math.sqrt(contestants.length))),
+  //     contestants.length,
+  //   );
+  //   let sum = 0;
+  //   for (let i = 0; i < zeroSumCount; i++) sum += contestants[i].delta;
+  //   const inc = Math.min(Math.max(Math.trunc(-sum / zeroSumCount), -10), 0);
+  //   for (const c of contestants) c.delta += inc;
+  // }
 
   validateDeltas(contestants);
 }
