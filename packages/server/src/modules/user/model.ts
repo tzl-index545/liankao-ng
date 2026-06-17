@@ -69,6 +69,20 @@ export const userParticipationsResponse = t.Object({
   data: t.Array(userParticipationItem)
 })
 
+export const userRatingHistoryItem = t.Object({
+  id: t.Number(),
+  userId: t.Number(),
+  contestId: t.Number(),
+  rank: t.Number(),
+  preContestRating: t.Nullable(t.Number()),
+  postContestRating: t.Nullable(t.Number())
+})
+
+export const userRatingHistoryResponse = t.Object({
+  success: t.Literal(true),
+  data: t.Array(userRatingHistoryItem)
+})
+
 export const userRatingChangeItem = t.Object({
   id: t.Number(),
   batchId: t.Number(),

@@ -22,3 +22,10 @@ export const getUserRatingChanges = (id) => {
     method: 'get'
   })
 }
+
+export const getUserRatingHistory = (id) => {
+  return request({
+    url: `/user/${id}/ratingHistory`,
+    method: 'get'
+  })
+}

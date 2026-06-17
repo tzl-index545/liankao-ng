@@ -5,6 +5,7 @@ import {
   userDetailParams,
   userDetailResponse,
   userParticipationsResponse,
+  userRatingHistoryResponse,
   userRatingChangesResponse,
   userApiError
 } from './model'
@@ -22,6 +23,7 @@ export const user = new Elysia({
     detailParams: userDetailParams,
     detailResponse: userDetailResponse,
     participationsResponse: userParticipationsResponse,
+    ratingHistoryResponse: userRatingHistoryResponse,
     ratingChangesResponse: userRatingChangesResponse,
     apiError: userApiError
   })
@@ -51,6 +53,14 @@ export const user = new Elysia({
     detail: {
       summary: '用户参赛记录',
       description: '获取用户的参赛记录'
+    }
+  })
+  .get('/:id/ratingHistory', ({ params }) => UserService.getRatingHistory(params.id), {
+    params: userDetailParams,
+    response: { 200: userRatingHistoryResponse },
+    detail: {
+      summary: '用户等级分历史',
+      description: '从参赛记录获取用户等级分历史'
     }
   })
   .get('/:id/ratingUserChanges', ({ params }) => UserService.getRatingChanges(params.id), {
