@@ -26,14 +26,6 @@
         <h3>比赛描述</h3>
         <p>{{ contest.description }}</p>
       </div>
-      <div class="contest-rating">
-        <h3>评分</h3>
-        <StarRating 
-          v-model="localRating" 
-          @change="handleRate"
-          :disabled="ratingDisabled"
-        />
-      </div>
       <div class="contest-problems">
         <h3>题目列表</h3>
         <div v-loading="problemsLoading">
