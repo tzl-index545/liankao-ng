@@ -17,12 +17,12 @@
     "pinia": "latest",
     "axios": "latest",
     "element-plus": "latest",
-    "@element-plus/icons-vue": "latest",
-    "echarts": "latest"
+    "@element-plus/icons-vue": "latest"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "latest",
     "vite": "latest",
+    "unplugin-element-plus": "^0.11.2",
     "@vue/test-utils": "latest",
     "vitest": "latest",
     "jsdom": "latest",
