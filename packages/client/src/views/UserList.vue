@@ -14,9 +14,7 @@
       <el-table v-if="users.length > 0" :data="users">
         <el-table-column label="昵称" min-width="200">
           <template #default="{ row }">
-            <el-button class="user-link" type="primary" link @click="goToUserDetail(row.id)">
-              <UserName :uid="row.id" :user="row" />
-            </el-button>
+            <UserName :uid="row.id" :user="row" />
           </template>
         </el-table-column>
         <el-table-column label="Rating" width="150">
@@ -43,12 +41,10 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElTable, ElTableColumn, ElSelect, ElOption, ElPagination, ElEmpty, ElButton, ElMessage } from 'element-plus'
+import { ElTable, ElTableColumn, ElSelect, ElOption, ElPagination, ElEmpty, ElMessage } from 'element-plus'
 import { getUserList } from '../api/user'
 import UserName from '../components/UserName.vue'
 
-const router = useRouter()
 const loading = ref(false)
 const users = ref([])
 const sortDirection = ref('desc')
@@ -86,10 +82,6 @@ const handleSizeChange = () => {
 
 const handlePageChange = () => {
   fetchUsers()
-}
-
-const goToUserDetail = (id) => {
-  router.push(`/users/${id}`)
 }
 
 onMounted(() => {
@@ -134,12 +126,6 @@ onMounted(() => {
   margin-top: 24px;
   display: flex;
   justify-content: center;
-}
-
-.user-link {
-  justify-content: flex-start;
-  padding: 0;
-  font-size: 14px;
 }
 
 .rating-value {

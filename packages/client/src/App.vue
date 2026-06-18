@@ -17,7 +17,11 @@
       </div>
       <div class="user-info">
         <template v-if="userStore.isLoggedIn">
-          <span class="username">{{ userStore.userInfo?.nickname || '' }}</span>
+          <UserName
+            v-if="userStore.userInfo?.id"
+            :uid="userStore.userInfo.id"
+            :user="userStore.userInfo"
+          />
           <el-button type="primary" link @click="handleLogout">退出</el-button>
         </template>
         <template v-else>
@@ -43,6 +47,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMenu, ElMenuItem, ElButton } from 'element-plus'
 import { useUserStore } from './store/user'
+import UserName from './components/UserName.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -95,11 +100,6 @@ const handleLogout = () => {
   display: flex;
   align-items: center;
   gap: 16px;
-}
-
-.username {
-  font-size: 14px;
-  color: #606266;
 }
 
 .main-content {

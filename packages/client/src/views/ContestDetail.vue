@@ -51,9 +51,7 @@
             <el-table-column prop="rank" label="排名" width="90" align="center" />
             <el-table-column label="用户" min-width="180">
               <template #default="{ row }">
-                <el-button class="ranklist-user-link" type="primary" link @click="goToUser(row.user.id)">
-                  {{ formatUserName(row.user) }}
-                </el-button>
+                <UserName :uid="row.user.id" :user="row.user" :rating="row.preContestRating" />
               </template>
             </el-table-column>
             <el-table-column prop="totalScore" label="总分" width="100" align="center" />
@@ -88,6 +86,7 @@ import { ElCard, ElTag, ElIcon, ElTable, ElTableColumn, ElButton, ElEmpty, ElMes
 import { Clock, Star } from '@element-plus/icons-vue'
 import StarRating from '../components/StarRating.vue'
 import QualityScore from '../components/QualityScore.vue'
+import UserName from '../components/UserName.vue'
 import { getContestDetail, getContestProblems, getContestRanklist, voteContest } from '../api/contest'
 
 const route = useRoute()
@@ -158,16 +157,6 @@ const handleRate = async (value) => {
 
 const goToProblem = (id) => {
   router.push(`/problems/${id}`)
-}
-
-const goToUser = (id) => {
-  router.push(`/users/${id}`)
-}
-
-const formatUserName = (user) => {
-  if (!user) return '-'
-  if (!user.realname) return user.nickname || '-'
-  return `${user.nickname}(${user.realname})`
 }
 
 const formatProblemScore = (scores, problemId) => {
@@ -287,14 +276,6 @@ onMounted(() => {
   margin: 0 0 16px 0;
   font-size: 16px;
   color: #303133;
-}
-
-.ranklist-user-link {
-  padding: 0;
-  white-space: normal;
-  text-align: left;
-  line-height: 1.4;
-  font-weight: 600;
 }
 
 .rating-delta {
