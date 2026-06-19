@@ -17,8 +17,7 @@
           <el-input
             v-model="phpSessionId"
             class="session-input"
-            type="password"
-            show-password
+            type="text"
             clearable
             autocomplete="off"
             placeholder="PHPSESSID"
@@ -174,7 +173,7 @@ const fetchContests = async () => {
     contests.value = res.data.items
     total.value = res.data.total
   } catch (error) {
-    ElMessage.error('获取比赛列表失败')
+    ElMessage.error('获取比赛列表失败，请尝试登出并重新登录')
   } finally {
     loading.value = false
   }
@@ -293,7 +292,7 @@ const handleCalculateRating = async () => {
     ElMessage.success(res?.message || '计算 rating 成功')
     fetchContests()
   } catch (error) {
-    ElMessage.error(error?.message || '计算 rating 失败')
+    ElMessage.error(error?.message || '计算 rating 失败，你可能不是 admin')
   } finally {
     calculatingRating.value = false
   }
@@ -359,6 +358,9 @@ onMounted(() => {
 
 .session-input {
   width: 220px;
+}
+.session-input :deep(.el-input__inner) {
+  -webkit-text-security: disc;
 }
 
 .sort-bar {

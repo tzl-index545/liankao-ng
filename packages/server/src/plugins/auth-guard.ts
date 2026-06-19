@@ -17,13 +17,13 @@ export const authGuard = new Elysia({ name: 'auth.guard' })
     const authHeader = request.headers.get('authorization')
     if (!authHeader?.startsWith('Bearer ')) {
       set.status = 403
-      throw new Error('UNAUTHORIZED')
+      throw new Error('UNAUTHORIZED!!! Try to logout and login')
     }
     const token = authHeader.slice(7)
     const payload = await jwt.verify(token)
     if (!payload) {
       set.status = 403
-      throw new Error('INVALID_TOKEN')
+      throw new Error('INVALID_TOKEN!!! Try to logout and login')
     }
     return { user: payload as UserPayload }
   })
