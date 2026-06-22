@@ -64,3 +64,14 @@ const port = Number(process.env.PORT ?? 3000)
 const hostname = process.env.HOST ?? "0.0.0.0"
 
 app.listen({ port, hostname })
+
+process.on('SIGTERM', () => {
+  console.log("Goodbye\n")
+  app.stop()
+  process.exit(0)
+})
+process.on('SIGINT', () => {
+  console.log("Goodbye\n")
+  app.stop()
+  process.exit(0)
+})
