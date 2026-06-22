@@ -9,7 +9,7 @@
       </template>
       <el-form :model="registerForm" :rules="rules" ref="registerFormRef" label-position="top">
         <el-form-item label="昵称" prop="nickname">
-          <el-input v-model="registerForm.nickname" placeholder="请输入昵称" />
+          <el-input v-model="registerForm.nickname" placeholder="请输入昵称（不是小视野用户名）" />
         </el-form-item>
         <el-form-item label="密码" prop="unHashedPassword">
           <el-input 
@@ -19,11 +19,11 @@
             show-password
           />
         </el-form-item>
-        <el-form-item label="小视野Token" prop="xsytoken">
+        <el-form-item label="小视野 PHPSESSID" prop="xsytoken">
           <el-input 
             v-model="registerForm.xsytoken" 
             type="text" 
-            placeholder="请输入小视野Token"
+            placeholder="请输入小视野 cookie 中的 PHPSESSID 来验证你的身份。"
           />
         </el-form-item>
         <el-form-item>
