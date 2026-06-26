@@ -12,7 +12,7 @@ mock.module('../../prisma', () => ({
 
 let ContestService: typeof import('./service')['ContestService'];
 
-describe('ContestService.getRanklist', () => {
+describe('ContestService', () => {
   beforeAll(async () => {
     ({ ContestService } = await import('./service'));
   });
@@ -101,6 +101,77 @@ describe('ContestService.getRanklist', () => {
     }))).toEqual([
       { userId: 1, preContestRating: 1514, postContestRating: 1525 },
       { userId: 2, preContestRating: 1501, postContestRating: 1490 },
+    ]);
+  });
+
+  it('returns problem qualities for contest problem lists', async () => {
+    contestFindUnique.mockResolvedValue({
+      id: 2437,
+      problems: [
+        {
+          point: 100,
+          order: 1,
+          problem: {
+            id: 10,
+            name: 'A',
+            description: 'Problem A',
+            qualities: 4.25,
+          },
+        },
+        {
+          point: 100,
+          order: 2,
+          problem: {
+            id: 11,
+            name: 'B',
+            description: 'Problem B',
+            qualities: null,
+          },
+        },
+      ],
+    });
+
+    const result = await ContestService.getProblems(2437);
+
+    expect(contestFindUnique).toHaveBeenCalledWith({
+      where: { id: 2437 },
+      select: {
+        id: true,
+        problems: {
+          select: {
+            point: true,
+            order: true,
+            problem: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                qualities: true,
+              },
+            },
+          },
+          orderBy: { order: 'asc' },
+        },
+      },
+    });
+    expect(result.success).toBe(true);
+    expect(result.data).toEqual([
+      {
+        id: 10,
+        name: 'A',
+        description: 'Problem A',
+        qualities: 4.25,
+        point: 100,
+        order: 1,
+      },
+      {
+        id: 11,
+        name: 'B',
+        description: 'Problem B',
+        qualities: null,
+        point: 100,
+        order: 2,
+      },
     ]);
   });
 });

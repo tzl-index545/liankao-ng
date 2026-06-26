@@ -34,10 +34,29 @@
       <router-view />
     </div>
     <footer class="app-footer">
-      <span>Made with ❤️ by index545</span>
-      <a href="https://github.com/tzl-index545/liankao-ng" target="_blank" rel="noopener noreferrer">
-        github.com/tzl-index545/liankao-ng
-      </a>
+      <div class="footer-container">
+        <!-- 左侧作者信息 -->
+        <span class="text-muted">
+          Made with <span class="heart">❤️</span> by <strong class="author">index545</strong>
+        </span>
+        
+        <!-- 分割线 -->
+        <span class="divider"></span>
+        
+        <!-- 右侧 Github 链接 -->
+        <a 
+          href="https://github.com/tzl-index545/liankao-ng" 
+          target="_blank" 
+          rel="noopener noreferrer"
+          class="github-link"
+          title="View source on GitHub"
+        >
+          <svg class="github-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path>
+          </svg>
+          <span class="link-text">liankao-ng</span>
+        </a>
+      </div>
     </footer>
   </div>
 </template>
@@ -62,6 +81,74 @@ const handleLogout = () => {
 </script>
 
 <style scoped>
+
+.app-footer {
+  margin-top: 10px;
+  padding-bottom: 30px;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  background-color: transparent; 
+}
+
+.footer-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.text-muted {
+  color: #909399;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.author {
+  color: #606266;
+  font-weight: 500;
+}
+
+.heart {
+  color: #f56c6c;
+  font-size: 13px;
+  display: inline-block;
+  animation: heartbeat 2s ease-in-out infinite;
+}
+
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  15% { transform: scale(1.15); }
+  30% { transform: scale(1); }
+  45% { transform: scale(1.15); }
+}
+
+.divider {
+  width: 1px;
+  height: 14px;
+  background-color: #dcdfe6;
+}
+
+.github-link {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #909399;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.github-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.github-link:hover {
+  color: #409eff;
+}
+
 .app-container {
   min-height: 100vh;
   background: #f5f7fb;
@@ -107,23 +194,4 @@ const handleLogout = () => {
   flex: 1;
 }
 
-.app-footer {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-  flex-wrap: wrap;
-  padding: 18px 24px 24px;
-  color: #606266;
-  font-size: 14px;
-}
-
-.app-footer a {
-  color: #409eff;
-  text-decoration: none;
-}
-
-.app-footer a:hover {
-  text-decoration: underline;
-}
 </style>

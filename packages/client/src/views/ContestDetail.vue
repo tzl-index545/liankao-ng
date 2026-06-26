@@ -30,12 +30,31 @@
         <h3>题目列表</h3>
         <div v-loading="problemsLoading">
           <el-table :data="problems" stripe style="width: 100%">
-            <el-table-column prop="order" label="顺序" width="80" />
-            <el-table-column prop="name" label="题目名称" />
-            <el-table-column prop="point" label="分值" width="100" />
-            <el-table-column label="操作" width="120">
-              <template #default="scope">
-                <el-button type="primary" link @click="goToProblem(scope.row.id)">
+            <el-table-column label="ID" width="90">
+              <template #default="{ row }">
+                <span class="problem-id">{{ row.id }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="名称" min-width="260">
+              <template #default="{ row }">
+                <el-button class="problem-link" type="primary" link @click="goToProblem(row.id)">
+                  {{ row.name }}
+                </el-button>
+              </template>
+            </el-table-column>
+            <el-table-column label="Qualities" width="150" align="center">
+              <template #default="{ row }">
+                <QualityScore :value="row.qualities" />
+              </template>
+            </el-table-column>
+            <el-table-column label="评分" width="120" align="center">
+              <template #default="{ row }">
+                <el-button size="small" @click="openProblemVoteDialog(row)">评分</el-button>
+              </template>
+            </el-table-column>
+            <el-table-column label="查看详情" width="120" align="center">
+              <template #default="{ row }">
+                <el-button type="primary" link @click="goToProblem(row.id)">
                   查看详情
                 </el-button>
               </template>
@@ -76,6 +95,11 @@
         </div>
       </div>
     </el-card>
+    <ProblemVoteDialog
+      v-model:visible="problemVoteDialogVisible"
+      :problem="activeProblem"
+      @submitted="handleProblemVoteSubmitted"
+    />
   </div>
 </template>
 
@@ -84,10 +108,10 @@ import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElCard, ElTag, ElIcon, ElTable, ElTableColumn, ElButton, ElEmpty, ElMessage } from 'element-plus'
 import { Clock, Star } from '@element-plus/icons-vue'
-import StarRating from '../components/StarRating.vue'
 import QualityScore from '../components/QualityScore.vue'
 import UserName from '../components/UserName.vue'
-import { getContestDetail, getContestProblems, getContestRanklist, voteContest } from '../api/contest'
+import ProblemVoteDialog from '../components/ProblemVoteDialog.vue'
+import { getContestDetail, getContestProblems, getContestRanklist } from '../api/contest'
 
 const route = useRoute()
 const router = useRouter()
@@ -97,8 +121,8 @@ const ranklistLoading = ref(false)
 const contest = ref({})
 const problems = ref([])
 const ranklist = ref([])
-const localRating = ref(0)
-const ratingDisabled = ref(false)
+const problemVoteDialogVisible = ref(false)
+const activeProblem = ref(null)
 
 const formatDate = (date) => {
   const d = new Date(date)
@@ -141,22 +165,18 @@ const fetchContestRanklist = async () => {
   }
 }
 
-const handleRate = async (value) => {
-  try {
-    ratingDisabled.value = true
-    await voteContest(route.params.id, value)
-    ElMessage.success('评分成功')
-    // 重新获取比赛详情以更新质量评分
-    await fetchContestDetail()
-  } catch (error) {
-    ElMessage.error('评分失败')
-  } finally {
-    ratingDisabled.value = false
-  }
-}
-
 const goToProblem = (id) => {
   router.push(`/problems/${id}`)
+}
+
+const openProblemVoteDialog = (problem) => {
+  activeProblem.value = problem
+  problemVoteDialogVisible.value = true
+}
+
+const handleProblemVoteSubmitted = () => {
+  activeProblem.value = null
+  fetchContestProblems()
 }
 
 const formatProblemScore = (scores, problemId) => {
@@ -266,6 +286,15 @@ onMounted(() => {
   margin: 0 0 16px 0;
   font-size: 16px;
   color: #303133;
+}
+
+.problem-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.problem-link {
+  justify-content: flex-start;
+  padding: 0;
 }
 
 .contest-ranklist {

@@ -58,6 +58,7 @@ export const contestProblemItem = t.Object({
   id: t.Number(),
   name: t.String(),
   description: t.String(),
+  qualities: t.Nullable(t.Number()),
   point: t.Number(),
   order: t.Number(),
 })
