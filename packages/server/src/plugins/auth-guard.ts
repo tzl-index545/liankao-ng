@@ -1,12 +1,13 @@
 import { Elysia } from 'elysia'
 import { jwt } from '@elysiajs/jwt'
 import type { UserPayload } from '../types/user'
+import { env } from '../config/env'
 
 export const authGuard = new Elysia({ name: 'auth.guard' })
   .use(
     jwt({
       name: 'jwt',
-      secret: process.env.JWT_SECRET!,
+      secret: env.jwtSecret,
       exp: '7d',
     })
   )

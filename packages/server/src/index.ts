@@ -8,6 +8,7 @@ import { rating } from "./modules/rating"
 import { create } from "./modules/create"
 import { user } from "./modules/user"
 import openapi from "@elysiajs/openapi";
+import { env } from "./config/env";
 
 const app = new Elysia({ prefix: '/api' })
     .use(
@@ -60,8 +61,8 @@ const app = new Elysia({ prefix: '/api' })
 
 export type App = typeof app
 
-const port = Number(process.env.PORT ?? 3000)
-const hostname = process.env.HOST ?? "0.0.0.0"
+const port = env.port
+const hostname = env.host
 
 app.listen({ port, hostname })
 

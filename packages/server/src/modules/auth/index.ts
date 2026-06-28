@@ -4,8 +4,9 @@ import { jwt } from '@elysiajs/jwt'
 import { AuthService } from './service'
 import { RegisterBody,LoginBody } from './model'
 import { openapi } from '@elysiajs/openapi'
+import { env } from '../../config/env'
 
-const JWT_SECRET = process.env.JWT_SECRET!
+const JWT_SECRET = env.jwtSecret
 
 export const auth = new Elysia({ prefix: '/auth' })
   .use(

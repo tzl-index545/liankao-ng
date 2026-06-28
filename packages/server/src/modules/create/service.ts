@@ -2,13 +2,11 @@ import { status } from 'elysia'
 import { recalculateRatingsFromContest } from '../../contest/updateRating'
 import { prisma } from '../../prisma'
 import { syncContestInfo } from '../../scraper/initContest'
+import { env } from '../../config/env'
 
 export abstract class CreateService {
   private static getAdminNicknames() {
-    return (process.env.ADMIN_NICKNAMES ?? '')
-      .split(',')
-      .map((name) => name.trim())
-      .filter((name) => name.length > 0)
+    return env.adminNicknames
   }
 
   private static isAdmin(nickname: string) {

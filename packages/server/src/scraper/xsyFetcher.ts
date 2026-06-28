@@ -1,4 +1,5 @@
 import axios from "axios";
+import { env } from "../config/env";
 
 type FetcherResponse<T> = {
   success: boolean;
@@ -7,11 +8,11 @@ type FetcherResponse<T> = {
 };
 
 function getFetcherBaseUrl() {
-  return process.env.XSY_FETCHER_URL?.replace(/\/+$/, "");
+  return env.xsyFetcherUrl;
 }
 
 function getFetcherToken() {
-  return process.env.XSY_FETCHER_TOKEN;
+  return env.xsyFetcherToken;
 }
 
 export function isXsyFetcherConfigured() {
@@ -44,7 +45,7 @@ async function callFetcher<T>(path: string, body: Record<string, unknown>): Prom
   if (!baseUrl) throw new Error("XSY_FETCHER_URL is not configured");
 
   const response = await axios.post<FetcherResponse<T>>(`${baseUrl}${path}`, body, {
-    timeout: Number(process.env.XSY_FETCHER_TIMEOUT_MS ?? 10000),
+    timeout: env.xsyFetcherTimeoutMs,
     headers: getFetcherHeaders(),
   });
 
