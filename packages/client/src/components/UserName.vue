@@ -17,7 +17,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import type { UserObject } from '../../../server/src/types/user'
+import type { UserObject } from 'shared'
 import { getUserDetail } from '../api/user'
 import { getRatingColor } from '../utils/rating'
 

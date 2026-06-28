@@ -1,6 +1,5 @@
 // src/user/registerUser.ts
 import { prisma } from "../prisma";
-import { getUserProfile } from "../scraper/getUserInfo";
 import { UserPayload } from "../types/user";
 
 const INITIAL_RATING = 1500;
@@ -23,53 +22,4 @@ export async function registerGhostUser(
       rating: INITIAL_RATING,
     },
   });
-}
-
-export async function registerRealUser(unHashedPassword: string,nickname: string,xsytoken: string) : Promise<UserPayload>{
-  const { xsyusername, realname } = await getUserProfile(xsytoken);
-  // const password=await Bun.password.hash(unHashedPassword);
-  // const userOldData=await prisma.user.findUnique({ where: { xsyusername } });
-  // console.log(xsyusername)
-// console.log(process.env.JWT_SECRET);
-  // console.log(prisma.user.findUnique({ where: { xsyusername } }))
-  const [password, userOldData] = await Promise.all([
-    Bun.password.hash(unHashedPassword),
-    prisma.user.findUnique({ where: { xsyusername } }),
-  ]);
-  if (userOldData) {
-    if (userOldData.password)   throw new Error("User Exists!");
-    const userData=await prisma.user.update({
-      where: { xsyusername },
-      data: {
-        password,
-        xsytoken,
-        nickname,
-        realname,
-      },
-    });
-    return {
-        xsyusername: userData.xsyusername,
-        nickname: userData.nickname,
-        rating: userData.rating,
-        id: userData.id
-    };
-    // return {xsyusername,nickname,}
-  }
-
-  const userData=await prisma.user.create({
-    data: {
-      xsyusername,
-      nickname,
-      password,
-      xsytoken,
-      realname,
-      rating: INITIAL_RATING,
-    },
-  });
-  return {
-        xsyusername: userData.xsyusername,
-        nickname: userData.nickname,
-        rating: userData.rating,
-        id: userData.id
-  };
 }

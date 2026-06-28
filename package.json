@@ -3,8 +3,14 @@
   "private": true,
   "scripts": {
     "dev:server": "bun --filter server dev",
-    "dev:web": "bun --filter web dev",
-    "dev": "bun --filter '*' dev"
+    "dev:client": "bun --filter client dev",
+    "dev": "bun --filter '*' dev",
+    "test:server": "bun --filter server test",
+    "test:client": "bun --filter client test:run",
+    "test:xsy-fetcher": "bun --filter xsy-fetcher test",
+    "test": "bun run test:server && bun run test:client && bun run test:xsy-fetcher",
+    "build:client": "bun --filter client build",
+    "build": "bun run build:client"
   },
   "workspaces": [
     "packages/*"

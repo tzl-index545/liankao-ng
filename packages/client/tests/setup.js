@@ -2,11 +2,18 @@
 import { vi } from 'vitest'
 
 // Mock localStorage
+const localStorageStore = new Map()
 const localStorageMock = {
-  getItem: vi.fn(),
-  setItem: vi.fn(),
-  removeItem: vi.fn(),
-  clear: vi.fn(),
+  getItem: vi.fn((key) => localStorageStore.get(key) ?? null),
+  setItem: vi.fn((key, value) => {
+    localStorageStore.set(key, String(value))
+  }),
+  removeItem: vi.fn((key) => {
+    localStorageStore.delete(key)
+  }),
+  clear: vi.fn(() => {
+    localStorageStore.clear()
+  }),
 }
 global.localStorage = localStorageMock
 

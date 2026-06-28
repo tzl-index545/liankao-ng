@@ -15,6 +15,7 @@ vi.mock('../../src/utils/request', () => ({
 describe('User Store', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    localStorage.clear()
     vi.clearAllMocks()
   })
 
@@ -116,6 +117,8 @@ describe('User Store', () => {
         }
       }
       authApi.checkLogin.mockResolvedValue(mockResponse)
+      localStorage.setItem('token', 'test-token')
+      localStorage.setItem('userInfo', JSON.stringify({ id: 1, nickname: 'testuser' }))
 
       const store = useUserStore()
       await store.checkLoginAction()

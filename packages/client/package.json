@@ -8,25 +8,27 @@
     "build": "bunx --bun vite build",
     "preview": "bunx --bun vite preview",
     "test": "vitest",
+    "test:run": "vitest run",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "vue": "latest",
-    "vue-router": "latest",
-    "pinia": "latest",
-    "axios": "latest",
-    "element-plus": "latest",
-    "@element-plus/icons-vue": "latest"
+    "vue": "3.5.39",
+    "vue-router": "5.1.0",
+    "pinia": "3.0.4",
+    "axios": "1.18.1",
+    "element-plus": "2.14.2",
+    "@element-plus/icons-vue": "2.3.2",
+    "shared": "workspace:*"
   },
   "devDependencies": {
-    "@vitejs/plugin-vue": "latest",
-    "vite": "latest",
+    "@vitejs/plugin-vue": "6.0.7",
+    "vite": "8.1.0",
     "unplugin-element-plus": "^0.11.2",
-    "@vue/test-utils": "latest",
-    "vitest": "latest",
-    "jsdom": "latest",
-    "@vitest/ui": "latest",
-    "@vitest/coverage-v8": "latest"
+    "@vue/test-utils": "2.4.11",
+    "vitest": "4.1.9",
+    "jsdom": "29.1.1",
+    "@vitest/ui": "4.1.9",
+    "@vitest/coverage-v8": "4.1.9"
   }
 }
