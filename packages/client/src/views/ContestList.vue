@@ -61,9 +61,20 @@
         <el-table-column label="比赛信息" min-width="360">
           <template #default="{ row }">
             <div class="contest-main">
-              <el-button class="contest-link" type="primary" link @click="goToContestDetail(row.id)">
-                {{ row.name }}
-              </el-button>
+              <div class="contest-title-row">
+                <el-button class="contest-link" type="primary" link @click="goToContestDetail(row.id)">
+                  {{ row.name }}
+                </el-button>
+                <el-icon
+                  class="contest-type-icon"
+                  :class="row.type % 2 === 1 ? 'contest-type-icon-rated' : 'contest-type-icon-unrated'"
+                  :title="row.type % 2 === 1 ? 'Rated' : 'Unrated'"
+                  :aria-label="row.type % 2 === 1 ? 'Rated' : 'Unrated'"
+                >
+                  <TrophyBase v-if="row.type % 2 === 1" />
+                  <ColdDrink v-else />
+                </el-icon>
+              </div>
               <div class="contest-time">{{ formatTimeRange(row.startTime, row.endTime) }}</div>
             </div>
           </template>
@@ -131,7 +142,8 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElTable, ElTableColumn, ElSelect, ElOption, ElPagination, ElEmpty, ElDialog, ElButton, ElInput, ElInputNumber, ElMessage, ElMessageBox } from 'element-plus'
+import { ElTable, ElTableColumn, ElSelect, ElOption, ElPagination, ElEmpty, ElDialog, ElButton, ElInput, ElInputNumber, ElIcon, ElMessage, ElMessageBox } from 'element-plus'
+import { ColdDrink, TrophyBase } from '@element-plus/icons-vue'
 import { calculateContestRating, crawlContest, getContestList, voteContest } from '../api/contest'
 import QualityScore from '../components/QualityScore.vue'
 
@@ -395,10 +407,30 @@ onMounted(() => {
   gap: 6px;
 }
 
+.contest-title-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
 .contest-link {
   justify-content: flex-start;
   padding: 0;
   font-size: 15px;
+}
+
+.contest-type-icon {
+  flex: 0 0 auto;
+  font-size: 16px;
+}
+
+.contest-type-icon-rated {
+  color: #d48806;
+}
+
+.contest-type-icon-unrated {
+  color: #8c8c8c;
 }
 
 .contest-time {
