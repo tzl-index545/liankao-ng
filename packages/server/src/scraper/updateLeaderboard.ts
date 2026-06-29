@@ -47,6 +47,12 @@ function getCellText($: CheerioAPI, row: any, index: number): string {
   return normalizeText($(row).find("td").eq(index).text());
 }
 
+function isStandingHeaderRow($: CheerioAPI, row: any): boolean {
+  const rankCell = normalizeHeader(getCellText($, row, 0));
+  const totalCell = normalizeHeader(getCellText($, row, 3));
+  return rankCell === "rank" || totalCell === "totalscore";
+}
+
 function buildProblemColumnMap(
   $: CheerioAPI,
   contestProblems: ContestProblemRow[]
@@ -92,6 +98,7 @@ function extractStandingRows(
   for (const row of rows) {
     const cells = $(row).find("td");
     if (cells.length < 3) continue;
+    if (isStandingHeaderRow($, row)) continue;
 
     const username = getCellText($, row, 1);
     const realname = getCellText($, row, 2) || username;

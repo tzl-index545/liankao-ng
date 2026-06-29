@@ -6,7 +6,34 @@ import { join } from 'node:path';
 
 let prisma: Awaited<typeof import('../prisma')>['prisma'];
 let recalculateRatingsFromContest: typeof import('./updateRating')['recalculateRatingsFromContest'];
+let syncLeaderboardFromHtml: typeof import('../scraper/updateLeaderboard')['syncLeaderboardFromHtml'];
 let tempDir: string;
+
+const anonymizedLeaderboardHtml = `
+<html>
+  <body>
+    <table>
+      <tbody>
+        <tr>
+          <td>Rank</td><td>User</td><td>Real Name</td><td>Total Score</td><td>A</td><td>B</td><td>C</td>
+        </tr>
+        <tr>
+          <td>1</td><td>anon001</td><td>Anonymous 1</td><td>300</td><td>100</td><td>100</td><td>100</td>
+        </tr>
+        <tr>
+          <td>2</td><td>anon002</td><td>Anonymous 2</td><td>300</td><td>100</td><td>100</td><td>100</td>
+        </tr>
+        <tr>
+          <td>3</td><td>anon003</td><td>Anonymous 3</td><td>260</td><td>100</td><td>100</td><td>60</td>
+        </tr>
+        <tr>
+          <td>4</td><td>anon004</td><td>Anonymous 4</td><td>0</td><td>0</td><td>0</td><td>0</td>
+        </tr>
+      </tbody>
+    </table>
+  </body>
+</html>
+`;
 
 function createSchema(dbPath: string): void {
   const db = new Database(dbPath);
@@ -37,6 +64,27 @@ function createSchema(dbPath: string): void {
       "type" INTEGER NOT NULL DEFAULT 0
     );
 
+    CREATE TABLE "Problem" (
+      "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+      "difficulties" INTEGER,
+      "qualities" REAL,
+      "name" TEXT NOT NULL,
+      "description" TEXT NOT NULL
+    );
+
+    CREATE TABLE "ContestProblem" (
+      "contestId" INTEGER NOT NULL,
+      "problemId" INTEGER NOT NULL,
+      "point" INTEGER NOT NULL DEFAULT 0,
+      "order" INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY ("contestId", "problemId"),
+      CONSTRAINT "ContestProblem_contestId_fkey" FOREIGN KEY ("contestId") REFERENCES "Contest" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      CONSTRAINT "ContestProblem_problemId_fkey" FOREIGN KEY ("problemId") REFERENCES "Problem" ("id") ON DELETE CASCADE ON UPDATE CASCADE
+    );
+
+    CREATE INDEX "ContestProblem_contestId_idx" ON "ContestProblem"("contestId");
+    CREATE INDEX "ContestProblem_problemId_idx" ON "ContestProblem"("problemId");
+
     CREATE TABLE "Participation" (
       "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
       "userId" INTEGER NOT NULL,
@@ -59,8 +107,7 @@ function createSchema(dbPath: string): void {
       "startContestId" INTEGER NOT NULL,
       "mode" TEXT NOT NULL,
       "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "completedAt" DATETIME,
-      "revertedAt" DATETIME
+      "completedAt" DATETIME
     );
 
     CREATE TABLE "RatingUserChange" (
@@ -78,35 +125,17 @@ function createSchema(dbPath: string): void {
     CREATE INDEX "RatingUserChange_contestId_idx" ON "RatingUserChange"("contestId");
     CREATE INDEX "RatingUserChange_userId_idx" ON "RatingUserChange"("userId");
 
-    CREATE TABLE "RatingParticipationChange" (
-      "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-      "batchId" INTEGER NOT NULL,
-      "contestId" INTEGER NOT NULL,
-      "participationId" INTEGER NOT NULL,
-      "userId" INTEGER NOT NULL,
-      "beforeRank" INTEGER NOT NULL,
-      "afterRank" INTEGER NOT NULL,
-      "beforePostContestRating" INTEGER,
-      "afterPostContestRating" INTEGER,
-      CONSTRAINT "RatingParticipationChange_batchId_fkey" FOREIGN KEY ("batchId") REFERENCES "RatingCalculationBatch" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-      CONSTRAINT "RatingParticipationChange_participationId_fkey" FOREIGN KEY ("participationId") REFERENCES "Participation" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-      CONSTRAINT "RatingParticipationChange_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-    );
-
-    CREATE INDEX "RatingParticipationChange_batchId_idx" ON "RatingParticipationChange"("batchId");
-    CREATE INDEX "RatingParticipationChange_contestId_idx" ON "RatingParticipationChange"("contestId");
-    CREATE INDEX "RatingParticipationChange_participationId_idx" ON "RatingParticipationChange"("participationId");
-    CREATE INDEX "RatingParticipationChange_userId_idx" ON "RatingParticipationChange"("userId");
   `);
 
   db.close();
 }
 
 async function resetData(): Promise<void> {
-  await prisma.ratingParticipationChange.deleteMany();
   await prisma.ratingUserChange.deleteMany();
   await prisma.ratingCalculationBatch.deleteMany();
   await prisma.participation.deleteMany();
+  await prisma.contestProblem.deleteMany();
+  await prisma.problem.deleteMany();
   await prisma.contest.deleteMany();
   await prisma.user.deleteMany();
 
@@ -126,6 +155,7 @@ async function resetData(): Promise<void> {
         description: '',
         startTime: new Date('2026-01-01T00:00:00Z'),
         endTime: new Date('2026-01-01T02:00:00Z'),
+        type: 1,
       },
       {
         id: 102,
@@ -133,6 +163,7 @@ async function resetData(): Promise<void> {
         description: '',
         startTime: new Date('2026-01-02T00:00:00Z'),
         endTime: new Date('2026-01-02T02:00:00Z'),
+        type: 1,
       },
     ],
   });
@@ -146,6 +177,34 @@ async function resetData(): Promise<void> {
       { id: 5, userId: 1, contestId: 102, totalScore: 80, rank: 2, postContestRating: null, scores: {} },
       { id: 6, userId: 2, contestId: 102, totalScore: 80, rank: 2, postContestRating: null, scores: {} },
     ],
+  });
+}
+
+async function resetLeaderboardData(): Promise<void> {
+  await prisma.ratingUserChange.deleteMany();
+  await prisma.ratingCalculationBatch.deleteMany();
+  await prisma.participation.deleteMany();
+  await prisma.contestProblem.deleteMany();
+  await prisma.problem.deleteMany();
+  await prisma.contest.deleteMany();
+  await prisma.user.deleteMany();
+
+  await prisma.contest.create({
+    data: {
+      id: 2263,
+      name: 'Contest 2263',
+      description: '',
+      startTime: new Date('2026-01-01T00:00:00Z'),
+      endTime: new Date('2026-01-01T02:00:00Z'),
+      type: 1,
+      problems: {
+        create: [
+          { order: 1, point: 100, problem: { create: { id: 1, name: 'A', description: '' } } },
+          { order: 2, point: 100, problem: { create: { id: 2, name: 'B', description: '' } } },
+          { order: 3, point: 100, problem: { create: { id: 3, name: 'C', description: '' } } },
+        ],
+      },
+    },
   });
 }
 
@@ -184,6 +243,7 @@ describe('recalculateRatingsFromContest', () => {
     process.env.DATABASE_URL = `file:${dbPath}`;
     ({ prisma } = await import('../prisma'));
     ({ recalculateRatingsFromContest } = await import('./updateRating'));
+    ({ syncLeaderboardFromHtml } = await import('../scraper/updateLeaderboard'));
   });
 
   beforeEach(async () => {
@@ -242,7 +302,6 @@ describe('recalculateRatingsFromContest', () => {
     expect(batch.completedAt).toBeInstanceOf(Date);
 
     expect(await prisma.ratingUserChange.count()).toBe(6);
-    expect(await prisma.ratingParticipationChange.count()).toBe(6);
 
     const firstContestRanks = await prisma.participation.findMany({
       where: { contestId: 101 },
@@ -258,13 +317,6 @@ describe('recalculateRatingsFromContest', () => {
     expect(firstContestRanks.every((row) => row.preContestRating === 1500)).toBe(true);
     expect(firstContestRanks.every((row) => row.postContestRating !== null)).toBe(true);
 
-    const preservedBeforeState = await prisma.ratingParticipationChange.findFirstOrThrow({
-      where: { contestId: 101, userId: 1 },
-    });
-    expect(preservedBeforeState.beforeRank).toBe(1);
-    expect(preservedBeforeState.afterRank).toBe(1);
-    expect(preservedBeforeState.beforePostContestRating).toBe(1234);
-
     const users = await prisma.user.findMany({
       select: { id: true, rating: true },
       orderBy: { id: 'asc' },
@@ -277,6 +329,46 @@ describe('recalculateRatingsFromContest', () => {
       });
       expect(user.rating).toBe(latestChange.afterRating);
     }
+  });
+
+  it('skips unrated contests for rating and leaves their ranks untouched', async () => {
+    await prisma.contest.update({
+      where: { id: 101 },
+      data: { type: 0 },
+    });
+    await prisma.participation.updateMany({
+      where: { contestId: 101 },
+      data: {
+        rank: 99,
+        preContestRating: 1111,
+        postContestRating: 2222,
+      },
+    });
+
+    await recalculateRatingsFromContest(101);
+
+    const unratedContestRows = await prisma.participation.findMany({
+      where: { contestId: 101 },
+      select: { userId: true, rank: true, preContestRating: true, postContestRating: true },
+      orderBy: { userId: 'asc' },
+    });
+    expect(unratedContestRows).toEqual([
+      { userId: 1, rank: 99, preContestRating: 1111, postContestRating: 2222 },
+      { userId: 2, rank: 99, preContestRating: 1111, postContestRating: 2222 },
+      { userId: 3, rank: 99, preContestRating: 1111, postContestRating: 2222 },
+    ]);
+
+    expect(await prisma.ratingUserChange.count({ where: { contestId: 101 } })).toBe(0);
+
+    const ratedContestRows = await prisma.participation.findMany({
+      where: { contestId: 102 },
+      select: { userId: true, preContestRating: true, postContestRating: true },
+      orderBy: { userId: 'asc' },
+    });
+    expect(ratedContestRows.every((row) => row.preContestRating === 1500)).toBe(true);
+    expect(ratedContestRows.every((row) => row.postContestRating !== null)).toBe(true);
+
+    expect(await prisma.ratingUserChange.count()).toBe(3);
   });
 
   it('ignores zero-score users while writing their carried rating back to the user table', async () => {
@@ -321,12 +413,64 @@ describe('recalculateRatingsFromContest', () => {
     });
     expect(zeroScoreParticipation).toEqual({ rank: 4, preContestRating: 1500, postContestRating: 1500 });
 
-    const zeroScoreParticipationChange = await prisma.ratingParticipationChange.findFirstOrThrow({
-      where: { participationId: 7 },
+  });
+
+  it('writes ranks while parsing an anonymized cid 2263 leaderboard shape', async () => {
+    await resetLeaderboardData();
+
+    const standings = await syncLeaderboardFromHtml(anonymizedLeaderboardHtml, 2263);
+
+    expect(standings.map((row) => ({
+      username: row.username,
+      totalScore: row.totalScore,
+      rank: row.rank,
+    }))).toEqual([
+      { username: 'anon001', totalScore: 300, rank: 1 },
+      { username: 'anon002', totalScore: 300, rank: 1 },
+      { username: 'anon003', totalScore: 260, rank: 3 },
+      { username: 'anon004', totalScore: 0, rank: 4 },
+    ]);
+
+    expect(await prisma.user.count()).toBe(4);
+    expect(await prisma.user.count({ where: { xsyusername: 'User' } })).toBe(0);
+
+    const participations = await prisma.participation.findMany({
+      select: {
+        rank: true,
+        totalScore: true,
+        scores: true,
+        user: {
+          select: { xsyusername: true, realname: true },
+        },
+      },
+      orderBy: [{ rank: 'asc' }, { userId: 'asc' }],
     });
-    expect(zeroScoreParticipationChange.beforeRank).toBe(4);
-    expect(zeroScoreParticipationChange.afterRank).toBe(4);
-    expect(zeroScoreParticipationChange.beforePostContestRating).toBe(1777);
-    expect(zeroScoreParticipationChange.afterPostContestRating).toBe(1500);
+
+    expect(participations).toEqual([
+      {
+        rank: 1,
+        totalScore: 300,
+        scores: { '1': 100, '2': 100, '3': 100 },
+        user: { xsyusername: 'anon001', realname: 'Anonymous 1' },
+      },
+      {
+        rank: 1,
+        totalScore: 300,
+        scores: { '1': 100, '2': 100, '3': 100 },
+        user: { xsyusername: 'anon002', realname: 'Anonymous 2' },
+      },
+      {
+        rank: 3,
+        totalScore: 260,
+        scores: { '1': 100, '2': 100, '3': 60 },
+        user: { xsyusername: 'anon003', realname: 'Anonymous 3' },
+      },
+      {
+        rank: 4,
+        totalScore: 0,
+        scores: { '1': 0, '2': 0, '3': 0 },
+        user: { xsyusername: 'anon004', realname: 'Anonymous 4' },
+      },
+    ]);
   });
 });

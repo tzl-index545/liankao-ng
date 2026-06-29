@@ -35,7 +35,6 @@ model User {
   votes                      Vote[]
   problemVotes               ProblemVote[]
   ratingUserChanges          RatingUserChange[]
-  ratingParticipationChanges RatingParticipationChange[]
 }
 
 /// 题目信息
@@ -115,10 +114,9 @@ model Participation {
   scores            Json
 
   /// 关联的用户
-  user                       User                        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user                       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   /// 关联的比赛
-  contest                    Contest                     @relation(fields: [contestId], references: [id], onDelete: Cascade)
-  ratingParticipationChanges RatingParticipationChange[]
+  contest                    Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
 
   @@unique([userId, contestId])
   @@index([contestId])
@@ -175,14 +173,11 @@ model RatingCalculationBatch {
   mode           String
   createdAt      DateTime  @default(now())
   completedAt    DateTime?
-  revertedAt     DateTime?
 
-  userChanges          RatingUserChange[]
-  participationChanges RatingParticipationChange[]
+  userChanges RatingUserChange[]
 
   @@index([createdAt])
   @@index([completedAt])
-  @@index([revertedAt])
 }
 
 model RatingUserChange {
@@ -198,26 +193,5 @@ model RatingUserChange {
 
   @@index([batchId])
   @@index([contestId])
-  @@index([userId])
-}
-
-model RatingParticipationChange {
-  id                      Int  @id @default(autoincrement())
-  batchId                 Int
-  contestId               Int
-  participationId         Int
-  userId                  Int
-  beforeRank              Int
-  afterRank               Int
-  beforePostContestRating Int?
-  afterPostContestRating  Int?
-
-  batch         RatingCalculationBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  participation Participation          @relation(fields: [participationId], references: [id], onDelete: Cascade)
-  user          User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([batchId])
-  @@index([contestId])
-  @@index([participationId])
   @@index([userId])
 }
