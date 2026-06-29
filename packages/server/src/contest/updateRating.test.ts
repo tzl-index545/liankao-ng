@@ -34,7 +34,7 @@ function createSchema(dbPath: string): void {
       "startTime" DATETIME NOT NULL,
       "endTime" DATETIME NOT NULL,
       "qualities" REAL,
-      "type" TEXT
+      "type" INTEGER NOT NULL DEFAULT 0
     );
 
     CREATE TABLE "Participation" (

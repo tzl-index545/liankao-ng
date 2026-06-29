@@ -3,7 +3,6 @@
   <el-card class="contest-card" @click="handleClick">
     <div class="contest-header">
       <h3 class="contest-name">{{ contest.name }}</h3>
-      <el-tag v-if="contest.type" type="info" size="small">{{ contest.type }}</el-tag>
     </div>
     <div class="contest-info">
       <div class="info-item">
@@ -29,7 +28,7 @@
 <script setup>
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElCard, ElTag, ElIcon, ElMessage } from 'element-plus'
+import { ElCard, ElIcon, ElMessage } from 'element-plus'
 import { Clock, Star } from '@element-plus/icons-vue'
 import StarRating from './StarRating.vue'
 import QualityScore from './QualityScore.vue'

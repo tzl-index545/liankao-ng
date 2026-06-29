@@ -31,7 +31,7 @@ describe('ContestCard Component', () => {
     startTime: '2024-01-01T00:00:00Z',
     endTime: '2024-01-02T00:00:00Z',
     qualities: 4.5,
-    type: 'online'
+    type: 1
   }
 
   const push = vi.fn()
@@ -49,7 +49,6 @@ describe('ContestCard Component', () => {
 
     expect(wrapper.text()).toContain('Test Contest')
     expect(wrapper.text()).toContain('Test Description')
-    expect(wrapper.text()).toContain('online')
   })
 
   it('should format date correctly', () => {
@@ -152,35 +151,4 @@ describe('ContestCard Component', () => {
     expect(wrapper.text()).not.toContain('质量评分')
   })
 
-  it('should display contest type when available', () => {
-    const wrapper = mount(ContestCard, {
-      props: {
-        contest: mockContest
-      },
-      global: {
-        plugins: [router]
-      }
-    })
-
-    expect(wrapper.find('.el-tag').exists()).toBe(true)
-    expect(wrapper.find('.el-tag').text()).toBe('online')
-  })
-
-  it('should not display contest type when not available', () => {
-    const contestWithoutType = {
-      ...mockContest,
-      type: null
-    }
-
-    const wrapper = mount(ContestCard, {
-      props: {
-        contest: contestWithoutType
-      },
-      global: {
-        plugins: [router]
-      }
-    })
-
-    expect(wrapper.find('.el-tag').exists()).toBe(false)
-  })
 })

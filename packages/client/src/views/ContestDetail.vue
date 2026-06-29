@@ -5,7 +5,6 @@
       <template #header>
         <div class="contest-header">
           <h1>{{ contest.name }}</h1>
-          <el-tag v-if="contest.type" type="info">{{ contest.type }}</el-tag>
         </div>
       </template>
       <div class="contest-info">
@@ -106,7 +105,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElCard, ElTag, ElIcon, ElTable, ElTableColumn, ElButton, ElEmpty, ElMessage } from 'element-plus'
+import { ElCard, ElIcon, ElTable, ElTableColumn, ElButton, ElEmpty, ElMessage } from 'element-plus'
 import { Clock, Star } from '@element-plus/icons-vue'
 import QualityScore from '../components/QualityScore.vue'
 import UserName from '../components/UserName.vue'

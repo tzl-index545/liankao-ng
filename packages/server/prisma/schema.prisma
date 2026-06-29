@@ -66,7 +66,7 @@ model Contest {
   /// 比赛结束时间
   endTime      DateTime
   qualities    Float?
-  type         String?
+  type         Int              @default(0)
   /// 本场比赛包含的题目（通过中间表）
   problems     ContestProblem[]
   /// 本场比赛的所有参赛记录

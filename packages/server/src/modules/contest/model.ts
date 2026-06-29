@@ -19,7 +19,7 @@ export const contestListItem = t.Object({
   startTime: t.Date(),
   endTime: t.Date(),
   qualities: t.Nullable(t.Number()),
-  type: t.Nullable(t.String()),
+  type: t.Number(),
 })
 
 export const contestPaginatedData = t.Object({
@@ -46,7 +46,7 @@ export const contestEntity = t.Object({
   startTime: t.Date(),
   endTime: t.Date(),
   qualities: t.Nullable(t.Number()),
-  type: t.Nullable(t.String()),
+  type: t.Number(),
 })
 
 export const contestDetailResponse = t.Object({

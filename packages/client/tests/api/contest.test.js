@@ -37,7 +37,7 @@ describe('Contest API', () => {
               startTime: '2024-01-01T00:00:00Z',
               endTime: '2024-01-02T00:00:00Z',
               qualities: 4.5,
-              type: 'online'
+              type: 1
             }
           ],
           total: 1,
@@ -73,7 +73,7 @@ describe('Contest API', () => {
               startTime: '2024-01-01T00:00:00Z',
               endTime: '2024-01-02T00:00:00Z',
               qualities: 4.5,
-              type: 'online'
+              type: 1
             }
           ],
           total: 1,
@@ -110,7 +110,7 @@ describe('Contest API', () => {
             startTime: '2024-01-01T00:00:00Z',
             endTime: '2024-01-02T00:00:00Z',
             qualities: 4.5,
-            type: 'online'
+            type: 1
           }
         }
       }
@@ -135,7 +135,7 @@ describe('Contest API', () => {
           startTime: '2024-01-01T00:00:00Z',
           endTime: '2024-01-02T00:00:00Z',
           qualities: 4.5,
-          type: 'online'
+          type: 1
         }
       }
       request.mockResolvedValue(mockResponse)
