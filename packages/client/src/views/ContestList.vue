@@ -71,8 +71,8 @@
                   :title="row.type % 2 === 1 ? 'Rated' : 'Unrated'"
                   :aria-label="row.type % 2 === 1 ? 'Rated' : 'Unrated'"
                 >
-                  <TrophyBase v-if="row.type % 2 === 1" />
-                  <ColdDrink v-else />
+                  <Trophy v-if="row.type % 2 === 1" />
+                  <Dessert v-else />
                 </el-icon>
               </div>
               <div class="contest-time">{{ formatTimeRange(row.startTime, row.endTime) }}</div>
@@ -143,7 +143,7 @@
 import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElTable, ElTableColumn, ElSelect, ElOption, ElPagination, ElEmpty, ElDialog, ElButton, ElInput, ElInputNumber, ElIcon, ElMessage, ElMessageBox } from 'element-plus'
-import { ColdDrink, TrophyBase } from '@element-plus/icons-vue'
+import { Dessert, Trophy } from '@element-plus/icons-vue'
 import { calculateContestRating, crawlContest, getContestList, voteContest } from '../api/contest'
 import QualityScore from '../components/QualityScore.vue'
 

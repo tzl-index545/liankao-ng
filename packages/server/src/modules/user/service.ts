@@ -11,6 +11,10 @@ function userOrderBy(order: string | undefined): Prisma.UserOrderByWithRelationI
   return [{ id: 'desc' }]
 }
 
+function isRatedContestType(type: number): boolean {
+  return type % 2 === 1
+}
+
 export abstract class UserService {
   static async list(query: UserListQuery) {
     const { page = 1, pageSize = 20 } = query
@@ -125,13 +129,20 @@ export abstract class UserService {
         contestId: true,
         rank: true,
         preContestRating: true,
-        postContestRating: true
+        postContestRating: true,
+        contest: {
+          select: {
+            type: true
+          }
+        }
       }
     })
 
     return {
       success: true as const,
       data: ratingHistory
+        .filter((item) => isRatedContestType(item.contest.type))
+        .map(({ contest, ...item }) => item)
     }
   }
 }
