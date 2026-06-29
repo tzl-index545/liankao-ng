@@ -1,7 +1,7 @@
 import { load, type CheerioAPI } from "cheerio";
 import { prisma } from "../prisma";
 import { fetchHtml } from "../scraper/fetch";
-import { registerGhostUser } from "../user/registerUser";
+import { registerGhostUser } from "../modules/auth/registerUser"
 
 
 type ContestProblemRow = {
