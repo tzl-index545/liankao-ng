@@ -6,6 +6,8 @@ import {
   createContestBody,
   createContestErrorResponse,
   createContestSuccessResponse,
+  toggleContestRatedBody,
+  toggleContestRatedResponse,
 } from './model'
 import { CreateService } from './service'
 
@@ -70,5 +72,23 @@ export const create = new Elysia({
     detail: {
       summary: '重算 rating',
       description: '仅管理员可调用（由 ADMIN_NICKNAMES 控制）。传入 package.contestId，从该比赛开始重算 rating。',
+    },
+  })
+  .post('/contest/rated', ({ body, user }) => {
+    if (!user) {
+      return status(403, { success: false as const })
+    }
+    return CreateService.toggleContestRated(user.id, body.package.contestId)
+  }, {
+    body: toggleContestRatedBody,
+    response: {
+      200: toggleContestRatedResponse,
+      403: toggleContestRatedResponse,
+      404: toggleContestRatedResponse,
+      500: toggleContestRatedResponse,
+    },
+    detail: {
+      summary: '切换比赛 rated 状态',
+      description: '仅管理员可调用（由 ADMIN_NICKNAMES 控制）。传入 package.contestId，将比赛 type 更新为 type ^ 1，不自动重算 rating。',
     },
   })

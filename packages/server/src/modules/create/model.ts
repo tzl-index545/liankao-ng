@@ -25,6 +25,10 @@ export const calculateRatingBody = t.Object({
   package: contestIdPackage,
 })
 
+export const toggleContestRatedBody = t.Object({
+  package: contestIdPackage,
+})
+
 export const createContestSuccessResponse = t.Object({
   success: t.Literal(true),
   message: t.String(),
@@ -33,6 +37,10 @@ export const createContestSuccessResponse = t.Object({
 export const createContestErrorResponse = t.Object({
   success: t.Literal(false),
   message: t.String(),
+})
+
+export const toggleContestRatedResponse = t.Object({
+  success: t.Boolean(),
 })
 
 export type CreateContestBody = typeof createContestBody.static

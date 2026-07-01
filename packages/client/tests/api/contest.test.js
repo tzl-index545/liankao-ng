@@ -7,6 +7,7 @@ import {
   getContestList,
   getContestProblems,
   getContestRanklist,
+  toggleContestRated,
   voteContest
 } from '../../src/api/contest'
 import request from '../../src/utils/request'
@@ -411,6 +412,44 @@ describe('Contest API', () => {
       request.mockRejectedValue(mockError)
 
       await expect(calculateContestRating(1001)).rejects.toThrow('Forbidden: admin permission required')
+    })
+  })
+
+  describe('toggleContestRated', () => {
+    it('should call toggle contest rated API with correct parameters', async () => {
+      const contestId = 1001
+      const mockResponse = {
+        success: true
+      }
+      request.mockResolvedValue(mockResponse)
+
+      await toggleContestRated(contestId)
+
+      expect(request).toHaveBeenCalledWith({
+        url: '/create/contest/rated',
+        method: 'post',
+        data: {
+          package: { contestId }
+        }
+      })
+    })
+
+    it('should return toggle contest rated response', async () => {
+      const mockResponse = {
+        success: true
+      }
+      request.mockResolvedValue(mockResponse)
+
+      const result = await toggleContestRated(1001)
+
+      expect(result).toEqual(mockResponse)
+    })
+
+    it('should handle toggle contest rated API error', async () => {
+      const mockError = new Error('Forbidden')
+      request.mockRejectedValue(mockError)
+
+      await expect(toggleContestRated(1001)).rejects.toThrow('Forbidden')
     })
   })
 })

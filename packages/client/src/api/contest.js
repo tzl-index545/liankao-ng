@@ -62,3 +62,13 @@ export const calculateContestRating = (contestId) => {
     timeout: 120000
   })
 }
+
+export const toggleContestRated = (contestId) => {
+  return request({
+    url: '/create/contest/rated',
+    method: 'post',
+    data: {
+      package: { contestId }
+    }
+  })
+}

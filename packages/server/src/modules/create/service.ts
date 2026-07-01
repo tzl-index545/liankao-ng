@@ -99,4 +99,52 @@ export abstract class CreateService {
       })
     }
   }
+
+  static async toggleContestRated(userId: number, contestId: number) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { nickname: true },
+    })
+
+    if (!user) {
+      return status(403, { success: false as const })
+    }
+
+    if (!CreateService.isAdmin(user.nickname)) {
+      return status(403, { success: false as const })
+    }
+
+    try {
+      const contest = await prisma.contest.findUnique({
+        where: { id: contestId },
+        select: { type: true },
+      })
+
+      if (!contest) {
+        return status(404, { success: false as const })
+      }
+
+      const nextType = contest.type ^ 1
+      await prisma.contest.update({
+        where: { id: contestId },
+        data: { type: nextType },
+        select: { id: true },
+      })
+
+      try {
+        await recalculateRatingsFromContest(contestId)
+      } catch (error) {
+        await prisma.contest.update({
+          where: { id: contestId },
+          data: { type: contest.type },
+          select: { id: true },
+        })
+        throw error
+      }
+
+      return { success: true as const }
+    } catch {
+      return status(500, { success: false as const })
+    }
+  }
 }

@@ -65,15 +65,20 @@
                 <el-button class="contest-link" type="primary" link @click="goToContestDetail(row.id)">
                   {{ row.name }}
                 </el-button>
-                <el-icon
-                  class="contest-type-icon"
-                  :class="row.type % 2 === 1 ? 'contest-type-icon-rated' : 'contest-type-icon-unrated'"
-                  :title="row.type % 2 === 1 ? 'Rated' : 'Unrated'"
-                  :aria-label="row.type % 2 === 1 ? 'Rated' : 'Unrated'"
+                <button
+                  type="button"
+                  class="contest-type-button"
+                  :class="row.type % 2 === 1 ? 'contest-type-button-rated' : 'contest-type-button-unrated'"
+                  :title="getContestRatedToggleTitle(row)"
+                  :aria-label="getContestRatedToggleTitle(row)"
+                  :disabled="togglingRatedContestId !== null"
+                  @click="handleToggleContestRated(row)"
                 >
-                  <Trophy v-if="row.type % 2 === 1" />
-                  <Dessert v-else />
-                </el-icon>
+                  <el-icon class="contest-type-icon" aria-hidden="true">
+                    <Trophy v-if="row.type % 2 === 1" />
+                    <Dessert v-else />
+                  </el-icon>
+                </button>
               </div>
               <div class="contest-time">{{ formatTimeRange(row.startTime, row.endTime) }}</div>
             </div>
@@ -144,7 +149,7 @@ import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElTable, ElTableColumn, ElSelect, ElOption, ElPagination, ElEmpty, ElDialog, ElButton, ElInput, ElInputNumber, ElIcon, ElMessage, ElMessageBox } from 'element-plus'
 import { Dessert, Trophy } from '@element-plus/icons-vue'
-import { calculateContestRating, crawlContest, getContestList, voteContest } from '../api/contest'
+import { calculateContestRating, crawlContest, getContestList, toggleContestRated, voteContest } from '../api/contest'
 import QualityScore from '../components/QualityScore.vue'
 
 const router = useRouter()
@@ -164,6 +169,7 @@ const contestOperationId = ref(null)
 const phpSessionId = ref('')
 const crawlingContest = ref(false)
 const calculatingRating = ref(false)
+const togglingRatedContestId = ref(null)
 
 const canSubmitVote = computed(() => selectedVoteScore.value !== null)
 const normalizedPhpSessionId = computed(() => phpSessionId.value.trim())
@@ -222,6 +228,20 @@ const formatDateTime = (input) => {
 
 const formatTimeRange = (startTime, endTime) => {
   return `${formatDateTime(startTime)} ~ ${formatDateTime(endTime)}`
+}
+
+const isRatedContest = (contest) => Number(contest?.type) % 2 === 1
+
+const getContestRatedStateLabel = (contest) => {
+  return isRatedContest(contest) ? 'Rated' : 'Unrated'
+}
+
+const getContestRatedTargetLabel = (contest) => {
+  return isRatedContest(contest) ? 'Unrated' : 'Rated'
+}
+
+const getContestRatedToggleTitle = (contest) => {
+  return `${getContestRatedStateLabel(contest)}，点击切换为 ${getContestRatedTargetLabel(contest)}`
 }
 
 const goToContestDetail = (id) => {
@@ -307,6 +327,36 @@ const handleCalculateRating = async () => {
     ElMessage.error(error?.message || '计算 rating 失败，你可能不是 admin')
   } finally {
     calculatingRating.value = false
+  }
+}
+
+const handleToggleContestRated = async (contest) => {
+  if (!contest || togglingRatedContestId.value !== null) return
+
+  const targetLabel = getContestRatedTargetLabel(contest)
+  try {
+    await ElMessageBox.confirm(
+      `确认将比赛 ${contest.id}「${contest.name}」切换为 ${targetLabel}？`,
+      '切换 rated 状态',
+      {
+        confirmButtonText: '切换',
+        cancelButtonText: '取消',
+        type: 'warning'
+      }
+    )
+  } catch (error) {
+    return
+  }
+
+  togglingRatedContestId.value = contest.id
+  try {
+    const res = await toggleContestRated(contest.id)
+    ElMessage.success(res?.message || `已切换为 ${targetLabel}`)
+    fetchContests()
+  } catch (error) {
+    ElMessage.error(error?.message || '切换 rated 状态失败，你可能不是 admin')
+  } finally {
+    togglingRatedContestId.value = null
   }
 }
 
@@ -420,16 +470,44 @@ onMounted(() => {
   font-size: 15px;
 }
 
-.contest-type-icon {
+.contest-type-button {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  color: #8c8c8c;
+  background: transparent;
+  cursor: pointer;
+}
+
+.contest-type-button:hover:not(:disabled) {
+  background: #f5f7fa;
+}
+
+.contest-type-button:focus-visible {
+  outline: 2px solid var(--el-color-primary);
+  outline-offset: 2px;
+}
+
+.contest-type-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.contest-type-icon {
   font-size: 16px;
 }
 
-.contest-type-icon-rated {
+.contest-type-button-rated {
   color: #d48806;
 }
 
-.contest-type-icon-unrated {
+.contest-type-button-unrated {
   color: #8c8c8c;
 }
 

@@ -331,7 +331,7 @@ describe('recalculateRatingsFromContest', () => {
     }
   });
 
-  it('skips unrated contests for rating and leaves their ranks untouched', async () => {
+  it('skips unrated contests while clearing their stale rating fields', async () => {
     await prisma.contest.update({
       where: { id: 101 },
       data: { type: 0 },
@@ -353,9 +353,9 @@ describe('recalculateRatingsFromContest', () => {
       orderBy: { userId: 'asc' },
     });
     expect(unratedContestRows).toEqual([
-      { userId: 1, rank: 99, preContestRating: 1111, postContestRating: 2222 },
-      { userId: 2, rank: 99, preContestRating: 1111, postContestRating: 2222 },
-      { userId: 3, rank: 99, preContestRating: 1111, postContestRating: 2222 },
+      { userId: 1, rank: 99, preContestRating: null, postContestRating: null },
+      { userId: 2, rank: 99, preContestRating: null, postContestRating: null },
+      { userId: 3, rank: 99, preContestRating: null, postContestRating: null },
     ]);
 
     expect(await prisma.ratingUserChange.count({ where: { contestId: 101 } })).toBe(0);
@@ -369,6 +369,50 @@ describe('recalculateRatingsFromContest', () => {
     expect(ratedContestRows.every((row) => row.postContestRating !== null)).toBe(true);
 
     expect(await prisma.ratingUserChange.count()).toBe(3);
+  });
+
+  it('resets users who only had rating from a contest that becomes unrated', async () => {
+    await prisma.user.create({
+      data: { id: 4, xsyusername: 'u4', nickname: 'u4', realname: 'User 4', rating: 1500 },
+    });
+    await prisma.participation.create({
+      data: {
+        id: 7,
+        userId: 4,
+        contestId: 101,
+        totalScore: 75,
+        rank: 3,
+        scores: {},
+      },
+    });
+
+    await recalculateRatingsFromContest(101);
+
+    const ratedOnlyUser = await prisma.user.findUniqueOrThrow({
+      where: { id: 4 },
+      select: { rating: true },
+    });
+    expect(ratedOnlyUser.rating).not.toBe(1500);
+
+    await prisma.contest.update({
+      where: { id: 101 },
+      data: { type: 0 },
+    });
+
+    await recalculateRatingsFromContest(101);
+
+    const resetUser = await prisma.user.findUniqueOrThrow({
+      where: { id: 4 },
+      select: { rating: true },
+    });
+    expect(resetUser.rating).toBe(1500);
+
+    const resetParticipation = await prisma.participation.findUniqueOrThrow({
+      where: { id: 7 },
+      select: { preContestRating: true, postContestRating: true },
+    });
+    expect(resetParticipation).toEqual({ preContestRating: null, postContestRating: null });
+    expect(await prisma.ratingUserChange.count({ where: { contestId: 101 } })).toBe(0);
   });
 
   it('ignores zero-score users while writing their carried rating back to the user table', async () => {

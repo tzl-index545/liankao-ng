@@ -290,7 +290,6 @@ async function persistRatingResults(
 ): Promise<void> {
   const userChanges: Prisma.RatingUserChangeCreateManyInput[] = [];
   const participationUpdates: ParticipationRatingUpdate[] = [];
-  const finalUserRatings = new Map<number, number>();
 
   for (const result of results) {
     for (const c of result.contestants) {
@@ -308,12 +307,10 @@ async function persistRatingResults(
         preContestRating: c.rating,
         newRating: c.newRating,
       });
-      finalUserRatings.set(c.userId, c.newRating);
     }
 
     for (const c of result.ignoredContestants) {
       participationUpdates.push(c);
-      finalUserRatings.set(c.userId, c.newRating);
     }
   }
 
@@ -324,7 +321,25 @@ async function persistRatingResults(
   }
 
   await updateParticipations(tx, participationUpdates);
-  await updateUsers(tx, finalUserRatings);
+}
+
+async function clearRatingResults(
+  tx: Prisma.TransactionClient,
+  contestIds: number[],
+): Promise<void> {
+  if (contestIds.length === 0) return;
+
+  await tx.ratingUserChange.deleteMany({
+    where: { contestId: { in: contestIds } },
+  });
+
+  await tx.participation.updateMany({
+    where: { contestId: { in: contestIds } },
+    data: {
+      preContestRating: null,
+      postContestRating: null,
+    },
+  });
 }
 
 async function recalculateRatingsFromContest(contestId: number): Promise<void> {
@@ -358,9 +373,14 @@ async function recalculateRatingsFromContest(contestId: number): Promise<void> {
     results.push(calculateContestResult(contest.id, input, ratings));
   }
 
+  const affectedContestIds = contests.slice(startIndex).map((contest) => contest.id);
+
   await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+    await clearRatingResults(tx, affectedContestIds);
+
     const batchId = await createBatch(tx, contestId, 'RECALCULATE_FROM_CONTEST');
     await persistRatingResults(tx, batchId, results);
+    await updateUsers(tx, ratings);
 
     await tx.ratingCalculationBatch.update({
       where: { id: batchId },
