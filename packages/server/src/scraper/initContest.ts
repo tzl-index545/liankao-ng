@@ -10,7 +10,7 @@ import {
   parseLeaderboardFromHtml,
   type ContestProblemRow,
 } from "./updateLeaderboard";
-import { buildXsyContestUrl } from "./xsyUrl";
+import { buildXsyContestUrl, buildXsyProblemUrl } from "./xsyUrl";
 
 const STATEMENT_FETCH_CONCURRENCY = 4;
 
@@ -19,6 +19,11 @@ type ScrapedProblem = ParsedContestPage["problems"][number] &
 
 type ScrapedContestBundle = Omit<ParsedContestPage, "problems"> & {
   problems: ScrapedProblem[];
+};
+
+export type StatementBackfillResult = {
+  updated: number;
+  failed: number;
 };
 
 async function mapWithConcurrency<T, R>(
@@ -211,6 +216,85 @@ export async function persistContestBundle(
   });
 }
 
+export async function backfillMissingProblemStatements(
+  phpSessionId: string,
+): Promise<StatementBackfillResult> {
+  const links = await prisma.contestProblem.findMany({
+    where: {
+      OR: [
+        { problem: { statementHtml: null } },
+        { problem: { statementHtml: "" } },
+      ],
+    },
+    orderBy: [{ contestId: "asc" }, { order: "asc" }],
+    select: {
+      contestId: true,
+      problemId: true,
+      order: true,
+      sourcePid: true,
+      sourceUrl: true,
+    },
+  });
+
+  const seenProblemIds = new Set<number>();
+  const missingLinks = links.filter((link) => {
+    if (seenProblemIds.has(link.problemId)) return false;
+    seenProblemIds.add(link.problemId);
+    return true;
+  });
+
+  const results = await mapWithConcurrency(
+    missingLinks,
+    STATEMENT_FETCH_CONCURRENCY,
+    async (link) => {
+      const sourcePid = link.sourcePid ?? Math.max(0, link.order - 1);
+      const sourceUrl =
+        link.sourceUrl ?? buildXsyProblemUrl(link.contestId, sourcePid);
+
+      try {
+        const problemHtml = await fetchHtml(sourceUrl, phpSessionId);
+        const statement = parseXsyProblemStatement(problemHtml, sourceUrl);
+        const fetchedAt = new Date();
+
+        await prisma.$transaction([
+          prisma.problem.update({
+            where: { id: link.problemId },
+            data: {
+              description: statement.description,
+              statementHtml: statement.statementHtml,
+              statementFetchedAt: fetchedAt,
+            },
+            select: { id: true },
+          }),
+          prisma.contestProblem.update({
+            where: {
+              contestId_problemId: {
+                contestId: link.contestId,
+                problemId: link.problemId,
+              },
+            },
+            data: { sourcePid, sourceUrl },
+            select: { contestId: true },
+          }),
+        ]);
+
+        return true;
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : "Unknown error";
+        console.warn(
+          `[Problem ${link.problemId}] statement backfill failed: ${message}`,
+        );
+        return false;
+      }
+    },
+  );
+
+  return {
+    updated: results.filter(Boolean).length,
+    failed: results.filter((success) => !success).length,
+  };
+}
+
 /**
  * Fetches and validates every upstream page before opening the write transaction.
  * Existing contests are refreshed in place so failed imports remain retryable.
@@ -222,4 +306,5 @@ export async function syncContestInfo(phpSessionId: string, contestId: number) {
   ]);
 
   await persistContestBundle(bundle, leaderboardHtml);
+  return backfillMissingProblemStatements(phpSessionId);
 }

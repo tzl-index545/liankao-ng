@@ -4,6 +4,7 @@ const userFindUnique = mock();
 const contestFindUnique = mock();
 const contestUpdate = mock();
 const recalculateRatingsFromContest = mock();
+const syncContestInfo = mock();
 
 mock.module('../../config/env', () => ({
   env: {
@@ -16,7 +17,7 @@ mock.module('../../contest/updateRating', () => ({
 }));
 
 mock.module('../../scraper/initContest', () => ({
-  syncContestInfo: mock(),
+  syncContestInfo,
 }));
 
 mock.module('../../prisma', () => ({
@@ -43,6 +44,19 @@ describe('CreateService', () => {
     contestFindUnique.mockReset();
     contestUpdate.mockReset();
     recalculateRatingsFromContest.mockReset();
+    syncContestInfo.mockReset();
+  });
+
+  it('reports old statement backfill results after crawling', async () => {
+    syncContestInfo.mockResolvedValue({ updated: 87, failed: 3 });
+
+    const result = await CreateService.crawlContest(2446, 'session');
+
+    expect(result).toEqual({
+      success: true,
+      message: 'Contest 2446 crawled. Backfilled 87 old problem statements; 3 failed.',
+    });
+    expect(syncContestInfo).toHaveBeenCalledWith('session', 2446);
   });
 
   it('toggles contest type with xor for admins', async () => {

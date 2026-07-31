@@ -34,11 +34,11 @@ export abstract class CreateService {
     }
 
     try {
-      await syncContestInfo(phpSessionId, contestId)
+      const backfill = await syncContestInfo(phpSessionId, contestId)
       await recalculateRatingsFromContest(contestId)
       return {
         success: true as const,
-        message: `Contest ${contestId} created and ratings recalculated.`,
+        message: `Contest ${contestId} created and ratings recalculated. Backfilled ${backfill.updated} old problem statements; ${backfill.failed} failed.`,
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error'
@@ -51,10 +51,10 @@ export abstract class CreateService {
 
   static async crawlContest(contestId: number, phpSessionId: string) {
     try {
-      await syncContestInfo(phpSessionId, contestId)
+      const backfill = await syncContestInfo(phpSessionId, contestId)
       return {
         success: true as const,
-        message: `Contest ${contestId} crawled.`,
+        message: `Contest ${contestId} crawled. Backfilled ${backfill.updated} old problem statements; ${backfill.failed} failed.`,
       }
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Unknown error'
