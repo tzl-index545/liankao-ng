@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { marked } from "marked";
 import sanitizeHtml from "sanitize-html";
 import { parseXsyPageUrl } from "./xsyUrl";
 
@@ -22,12 +23,14 @@ const STATEMENT_SECTIONS: StatementSection[] = [
 
 function isLoginPage($: cheerio.CheerioAPI): boolean {
   const bodyText = $("body").text().replace(/\s+/g, " ");
+  const hasLoginLink = $("a[href*='loginpage.php']").filter((_, element) =>
+    /login/i.test($(element).text()),
+  ).length > 0;
   return (
     /Please\s+Login\s+first/i.test(bodyText) ||
-    $("a[href*='loginpage.php']").filter((_, element) =>
-      /login/i.test($(element).text()),
-    ).length > 0 &&
-      $("#description").length === 0
+    (hasLoginLink &&
+      $("#description").length === 0 &&
+      $("#test-editor").length === 0)
   );
 }
 
@@ -134,6 +137,31 @@ export type ParsedProblemStatement = {
   statementHtml: string;
 };
 
+function parseEditorMarkdown(
+  markdown: string,
+  sourceUrl: string,
+): ParsedProblemStatement {
+  const rendered = marked.parse(markdown, {
+    async: false,
+    gfm: true,
+    breaks: false,
+  });
+  const statementHtml = sanitizeStatementHtml(
+    `<div class="statement-markdown">${rendered}</div>`,
+    sourceUrl,
+  ).trim();
+  if (!statementHtml) throw new Error("XSY problem statement is empty");
+
+  const renderedDocument = cheerio.load(statementHtml);
+  const description = renderedDocument("p")
+    .map((_, element) => renderedDocument(element).text().replace(/\s+/g, " ").trim())
+    .get()
+    .find((text) => text.length > 0)
+    ?.slice(0, 240) ?? "";
+
+  return { description, statementHtml };
+}
+
 export function parseXsyProblemStatement(
   htmlDocument: string,
   sourceUrl: string,
@@ -146,6 +174,9 @@ export function parseXsyProblemStatement(
 
   const $ = cheerio.load(htmlDocument);
   if (isLoginPage($)) throw new Error("XSY session is invalid or expired");
+
+  const editorMarkdown = $("#test-editor").first().text().trim();
+  if (editorMarkdown) return parseEditorMarkdown(editorMarkdown, sourceUrl);
 
   const descriptionElement = $("#description").first();
   if (!descriptionElement.length) {

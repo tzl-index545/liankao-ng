@@ -5,6 +5,40 @@ import { buildXsyProblemUrl } from "./xsyUrl";
 const sourceUrl = buildXsyProblemUrl(2446, 0);
 
 describe("parseXsyProblemStatement", () => {
+  it("parses the Editor.md layout used by XSY contest problems", () => {
+    const html = `
+      <html><body>
+        <div id="test-editormd">
+          <textarea id="test-editor" style="display:none">
+### 【题目描述】
+
+求 $a+b$ 的值。<img src="upload/p.png" onerror="steal()">
+
+### 【输入格式】
+
+两个整数。
+
+### 【样例输入】
+
+\`\`\`
+1 2
+\`\`\`
+          </textarea>
+        </div>
+      </body></html>
+    `;
+
+    const result = parseXsyProblemStatement(html, sourceUrl);
+
+    expect(result.description).toBe("求 $a+b$ 的值。");
+    expect(result.statementHtml).toContain("【题目描述】");
+    expect(result.statementHtml).toContain("<pre><code>");
+    expect(result.statementHtml).toContain(
+      'src="http://xsy.gdgzez.com.cn/JudgeOnline/upload/p.png"',
+    );
+    expect(result.statementHtml).not.toContain("onerror");
+  });
+
   it("extracts, sanitizes and rewrites a HUSTOJ statement", () => {
     const html = `
       <html><body>
