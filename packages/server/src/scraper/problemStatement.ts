@@ -4,6 +4,7 @@ import sanitizeHtml from "sanitize-html";
 import { parseXsyPageUrl } from "./xsyUrl";
 
 const MAX_STATEMENT_LENGTH = 2_000_000;
+export const STATEMENT_FORMAT_MARKER = "statement-format-v2";
 
 type StatementSection = {
   selector: string;
@@ -111,6 +112,17 @@ function sanitizeStatementHtml(html: string, sourceUrl: string): string {
   });
 }
 
+function standaloneHintSection($: cheerio.CheerioAPI): string {
+  const heading = $("h2")
+    .filter((_, element) => $(element).text().trim().toLowerCase() === "hint")
+    .first();
+  if (!heading.length) return "";
+
+  const content = heading.next("div").first().html()?.trim();
+  if (!content) return "";
+  return `<section class="statement-section statement-hint"><h2>提示</h2><div>${content}</div></section>`;
+}
+
 function sectionContent(
   $: cheerio.CheerioAPI,
   section: StatementSection,
@@ -140,6 +152,7 @@ export type ParsedProblemStatement = {
 function parseEditorMarkdown(
   markdown: string,
   sourceUrl: string,
+  hintSection: string,
 ): ParsedProblemStatement {
   const rendered = marked.parse(markdown, {
     async: false,
@@ -147,7 +160,7 @@ function parseEditorMarkdown(
     breaks: false,
   });
   const statementHtml = sanitizeStatementHtml(
-    `<div class="statement-markdown">${rendered}</div>`,
+    `<div class="statement-markdown ${STATEMENT_FORMAT_MARKER}">${rendered}</div>${hintSection}`,
     sourceUrl,
   ).trim();
   if (!statementHtml) throw new Error("XSY problem statement is empty");
@@ -176,7 +189,9 @@ export function parseXsyProblemStatement(
   if (isLoginPage($)) throw new Error("XSY session is invalid or expired");
 
   const editorMarkdown = $("#test-editor").first().text().trim();
-  if (editorMarkdown) return parseEditorMarkdown(editorMarkdown, sourceUrl);
+  if (editorMarkdown) {
+    return parseEditorMarkdown(editorMarkdown, sourceUrl, standaloneHintSection($));
+  }
 
   const descriptionElement = $("#description").first();
   if (!descriptionElement.length) {
@@ -196,7 +211,10 @@ export function parseXsyProblemStatement(
     ];
   });
 
-  const statementHtml = sanitizeStatementHtml(sections.join(""), sourceUrl).trim();
+  const statementHtml = sanitizeStatementHtml(
+    `<div class="statement-html ${STATEMENT_FORMAT_MARKER}">${sections.join("")}</div>`,
+    sourceUrl,
+  ).trim();
   if (!statementHtml) throw new Error("XSY problem statement is empty");
 
   const descriptionClone = descriptionElement.clone();

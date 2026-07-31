@@ -3,6 +3,7 @@ import { parseXsyContestPage, type ParsedContestPage } from "./contestPage";
 import { fetchHtml } from "./fetch";
 import {
   parseXsyProblemStatement,
+  STATEMENT_FORMAT_MARKER,
   type ParsedProblemStatement,
 } from "./problemStatement";
 import {
@@ -224,6 +225,11 @@ export async function backfillMissingProblemStatements(
       OR: [
         { problem: { statementHtml: null } },
         { problem: { statementHtml: "" } },
+        {
+          problem: {
+            statementHtml: { not: { contains: STATEMENT_FORMAT_MARKER } },
+          },
+        },
       ],
     },
     orderBy: [{ contestId: "asc" }, { order: "asc" }],

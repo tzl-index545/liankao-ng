@@ -25,6 +25,11 @@ describe("parseXsyProblemStatement", () => {
 \`\`\`
           </textarea>
         </div>
+        <h2>HINT</h2>
+        <div>
+          <p><a class="ke-insertfile" href="/JudgeOnline/upload/sample.zip" target="_blank"><span style="font-size:24px">样例下载</span></a></p>
+        </div>
+        <center><a href="submitpage.php?cid=2446&pid=0">Submit</a></center>
       </body></html>
     `;
 
@@ -32,10 +37,17 @@ describe("parseXsyProblemStatement", () => {
 
     expect(result.description).toBe("求 $a+b$ 的值。");
     expect(result.statementHtml).toContain("【题目描述】");
+    expect(result.statementHtml).toContain("statement-format-v2");
     expect(result.statementHtml).toContain("<pre><code>");
     expect(result.statementHtml).toContain(
       'src="http://xsy.gdgzez.com.cn/JudgeOnline/upload/p.png"',
     );
+    expect(result.statementHtml).toContain("提示");
+    expect(result.statementHtml).toContain("样例下载");
+    expect(result.statementHtml).toContain(
+      'href="http://xsy.gdgzez.com.cn/JudgeOnline/upload/sample.zip"',
+    );
+    expect(result.statementHtml).not.toContain("Submit");
     expect(result.statementHtml).not.toContain("onerror");
   });
 
@@ -57,6 +69,7 @@ describe("parseXsyProblemStatement", () => {
     const result = parseXsyProblemStatement(html, sourceUrl);
 
     expect(result.description).toBe("求两个数之和。");
+    expect(result.statementHtml).toContain("statement-format-v2");
     expect(result.statementHtml).toContain("题目描述");
     expect(result.statementHtml).toContain("样例输入");
     expect(result.statementHtml).toContain(
