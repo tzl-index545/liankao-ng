@@ -44,7 +44,14 @@ export const problemDetailData = t.Object({
   qualities: t.Nullable(t.Number()),
   name: t.String(),
   description: t.String(),
+  statementHtml: t.Nullable(t.String()),
+  statementFetchedAt: t.Nullable(t.Date()),
   contestIds: t.Array(t.Number()),
+  sources: t.Array(t.Object({
+    contestId: t.Number(),
+    sourcePid: t.Nullable(t.Number()),
+    sourceUrl: t.Nullable(t.String()),
+  })),
 })
 
 export const problemDetailResponse = t.Object({

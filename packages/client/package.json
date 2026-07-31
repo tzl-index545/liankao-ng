@@ -13,13 +13,14 @@
     "test:coverage": "vitest --coverage"
   },
   "dependencies": {
-    "vue": "3.5.39",
-    "vue-router": "5.1.0",
-    "pinia": "3.0.4",
+    "@element-plus/icons-vue": "2.3.2",
     "axios": "1.18.1",
     "element-plus": "2.14.2",
-    "@element-plus/icons-vue": "2.3.2",
-    "shared": "workspace:*"
+    "katex": "^0.18.1",
+    "pinia": "3.0.4",
+    "shared": "workspace:*",
+    "vue": "3.5.39",
+    "vue-router": "5.1.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "6.0.7",

@@ -2,9 +2,10 @@ import { load, type CheerioAPI } from "cheerio";
 import { prisma } from "../prisma";
 import { fetchHtml } from "../scraper/fetch";
 import { registerGhostUser } from "../modules/auth/registerUser"
+import { buildXsyLeaderboardUrl } from "./xsyUrl";
 
 
-type ContestProblemRow = {
+export type ContestProblemRow = {
   problemId: number;
   order: number;
   problem: {
@@ -12,7 +13,7 @@ type ContestProblemRow = {
   };
 };
 
-type ParsedStandingRow = {
+export type ParsedStandingRow = {
   username: string;
   realname: string;
   scores: Record<string, number>;
@@ -190,9 +191,10 @@ export async function syncLeaderboardFromHtml(
 
   if (!contest) throw new Error("Contest do not Exist!");
 
-  const $ = load(htmlDocument);
-  const rawRows = extractStandingRows($, contest.problems as ContestProblemRow[]);
-  const standings = assignRanks(rawRows);
+  const standings = parseLeaderboardFromHtml(
+    htmlDocument,
+    contest.problems as ContestProblemRow[],
+  );
 
   for (const row of standings) {
     const user = await registerGhostUser(row.username, row.realname);
@@ -202,14 +204,22 @@ export async function syncLeaderboardFromHtml(
   return standings;
 }
 
-export async function syncLeaderboardByToken(
-  phpSessionId: string,
-    contestId: number
-) {
-  const url="http://xsy.gdgzez.com.cn/JudgeOnline/contestrank.xls.php?cid="+contestId;
-  const htmlDocument = await fetchHtml(url, phpSessionId);
-  // console.log(htmlDocument);
-  if (!htmlDocument) throw("Failed to sync!");
+export function parseLeaderboardFromHtml(
+  htmlDocument: string,
+  contestProblems: ContestProblemRow[],
+): ParsedStandingRow[] {
+  const $ = load(htmlDocument);
+  if (/Please\s+Login\s+first/i.test($("body").text())) {
+    throw new Error("XSY session is invalid or expired");
+  }
 
-  return syncLeaderboardFromHtml(htmlDocument, contestId);
+  const rawRows = extractStandingRows($, contestProblems);
+  return assignRanks(rawRows);
+}
+
+export async function fetchLeaderboardByToken(
+  phpSessionId: string,
+  contestId: number,
+) {
+  return fetchHtml(buildXsyLeaderboardUrl(contestId), phpSessionId);
 }

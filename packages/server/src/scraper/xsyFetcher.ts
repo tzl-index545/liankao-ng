@@ -1,5 +1,6 @@
 import axios from "axios";
 import { env } from "../config/env";
+import { parseXsyPageUrl } from "./xsyUrl";
 
 type FetcherResponse<T> = {
   success: boolean;
@@ -17,15 +18,6 @@ function getFetcherToken() {
 
 export function isXsyFetcherConfigured() {
   return Boolean(getFetcherBaseUrl());
-}
-
-function isXsyUrl(url: string) {
-  try {
-    const parsed = new URL(url);
-    return parsed.protocol === "http:" && parsed.hostname === "xsy.gdgzez.com.cn";
-  } catch {
-    return false;
-  }
 }
 
 function getFetcherHeaders() {
@@ -60,10 +52,11 @@ export async function fetchXsyHtmlViaFetcher(
   url: string,
   xsytoken: string
 ): Promise<string | null> {
-  if (!isXsyFetcherConfigured() || !isXsyUrl(url)) return null;
+  if (!isXsyFetcherConfigured()) return null;
+  const validatedUrl = parseXsyPageUrl(url).url.toString();
 
   const data = await callFetcher<{ html: string }>("/xsy/fetch-html", {
-    url,
+    url: validatedUrl,
     xsytoken,
   });
 

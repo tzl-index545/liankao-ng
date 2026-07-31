@@ -69,7 +69,9 @@ function createSchema(dbPath: string): void {
       "difficulties" INTEGER,
       "qualities" REAL,
       "name" TEXT NOT NULL,
-      "description" TEXT NOT NULL
+      "description" TEXT NOT NULL,
+      "statementHtml" TEXT,
+      "statementFetchedAt" DATETIME
     );
 
     CREATE TABLE "ContestProblem" (
@@ -77,6 +79,8 @@ function createSchema(dbPath: string): void {
       "problemId" INTEGER NOT NULL,
       "point" INTEGER NOT NULL DEFAULT 0,
       "order" INTEGER NOT NULL DEFAULT 0,
+      "sourcePid" INTEGER,
+      "sourceUrl" TEXT,
       PRIMARY KEY ("contestId", "problemId"),
       CONSTRAINT "ContestProblem_contestId_fkey" FOREIGN KEY ("contestId") REFERENCES "Contest" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
       CONSTRAINT "ContestProblem_problemId_fkey" FOREIGN KEY ("problemId") REFERENCES "Problem" ("id") ON DELETE CASCADE ON UPDATE CASCADE
@@ -84,6 +88,7 @@ function createSchema(dbPath: string): void {
 
     CREATE INDEX "ContestProblem_contestId_idx" ON "ContestProblem"("contestId");
     CREATE INDEX "ContestProblem_problemId_idx" ON "ContestProblem"("problemId");
+    CREATE UNIQUE INDEX "ContestProblem_contestId_sourcePid_key" ON "ContestProblem"("contestId", "sourcePid");
 
     CREATE TABLE "Participation" (
       "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,

@@ -18,6 +18,27 @@ test('validateAllowedUrl accepts whitelisted contest urls', () => {
   assert.equal(url.searchParams.get('cid'), '1');
 });
 
+test('validateAllowedUrl accepts a zero-based contest problem id', () => {
+  const url = _private.validateAllowedUrl(
+    'http://xsy.gdgzez.com.cn/JudgeOnline/problem.php?cid=2446&pid=0'
+  );
+  assert.equal(url.pathname, '/JudgeOnline/problem.php');
+  assert.equal(url.searchParams.get('pid'), '0');
+});
+
+test('validateAllowedUrl rejects malformed problem urls', () => {
+  const invalidUrls = [
+    'http://xsy.gdgzez.com.cn/JudgeOnline/problem.php?cid=2446',
+    'http://xsy.gdgzez.com.cn/JudgeOnline/problem.php?cid=2446&pid=-1',
+    'http://xsy.gdgzez.com.cn/JudgeOnline/problem.php?cid=2446&pid=0&next=x',
+    'http://xsy.gdgzez.com.cn:8080/JudgeOnline/problem.php?cid=2446&pid=0',
+  ];
+
+  for (const url of invalidUrls) {
+    assert.throws(() => _private.validateAllowedUrl(url));
+  }
+});
+
 test('mainHandler rejects missing token', async () => {
   process.env.XSY_FETCHER_TOKEN = 'secret';
   const res = await fetcher.main_handler({

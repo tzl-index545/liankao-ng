@@ -17,7 +17,7 @@
           <el-input
             v-model="phpSessionId"
             class="session-input"
-            type="text"
+            type="password"
             clearable
             autocomplete="off"
             placeholder="PHPSESSID"
@@ -293,6 +293,7 @@ const handleCrawlContest = async () => {
   } catch (error) {
     ElMessage.error(error?.message || '爬取比赛失败')
   } finally {
+    phpSessionId.value = ''
     crawlingContest.value = false
   }
 }
@@ -421,10 +422,6 @@ onMounted(() => {
 .session-input {
   width: 220px;
 }
-.session-input :deep(.el-input__inner) {
-  -webkit-text-security: disc;
-}
-
 .sort-bar {
   display: flex;
   gap: 8px;

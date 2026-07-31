@@ -44,20 +44,34 @@ export abstract class ProblemService {
   static async getById(id: number) {
     const row = await prisma.problem.findUnique({
       where: { id },
+      select: {
+        id: true,
+        difficulties: true,
+        qualities: true,
+        name: true,
+        description: true,
+        statementHtml: true,
+        statementFetchedAt: true,
+        contests: {
+          select: {
+            contestId: true,
+            sourcePid: true,
+            sourceUrl: true,
+          },
+          orderBy: { contestId: 'asc' },
+        },
+      },
     })
     if (!row) {
       return status(404, { success: false as const, message: 'Problem not found' })
     }
-    const contestLinks = await prisma.contestProblem.findMany({
-      where: { problemId: id },
-      select: { contestId: true },
-      orderBy: { contestId: 'asc' },
-    })
+    const { contests, ...problem } = row
     return {
       success: true as const,
       data: {
-        ...row,
-        contestIds: contestLinks.map((c) => c.contestId),
+        ...problem,
+        contestIds: contests.map((link) => link.contestId),
+        sources: contests,
       },
     }
   }

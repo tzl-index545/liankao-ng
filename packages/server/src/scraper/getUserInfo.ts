@@ -1,12 +1,13 @@
 import * as cheerio from 'cheerio';
 import { fetchHtml } from './fetch';  
+import { buildXsyProfileUrl } from './xsyUrl';
 
 export type XsyUserProfile = {
     xsyusername: string;
     realname: string;
 };
 
-function parseUserProfile(webInfo: string): XsyUserProfile {
+export function parseUserProfile(webInfo: string): XsyUserProfile {
     const nameSelector = '#wrapper > div.form-container > form > div:nth-child(5) > p:nth-child(3)';
     const usernameSelector = '#wrapper > div.form-container > form > div:nth-child(4) > p';
     const $ = cheerio.load(webInfo);
@@ -17,7 +18,7 @@ function parseUserProfile(webInfo: string): XsyUserProfile {
 }
 
 export async function getUserProfile(xstoken: string): Promise<XsyUserProfile> {
-    const webInfo=await fetchHtml("http://xsy.gdgzez.com.cn/JudgeOnline/modifypage.php",xstoken);
+    const webInfo=await fetchHtml(buildXsyProfileUrl(),xstoken);
     return parseUserProfile(webInfo);
 }
 

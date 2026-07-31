@@ -43,6 +43,6 @@ export const problem = new Elysia({
     },
     detail: {
       summary: '题目详情',
-      description: 'data.contestIds 为该题所在比赛 id 列表。',
+      description: '仅详情接口返回清洗后的 statementHtml；data.sources 包含该题的 XSY 来源。',
     },
   })

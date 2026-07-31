@@ -55,7 +55,7 @@ const app = new Elysia({ prefix: '/api' })
         return status(404,{message:"API not found."});
     },{
       response: {
-        404 : t.String(),
+        404 : t.Object({ message: t.String() }),
       },
     })
 

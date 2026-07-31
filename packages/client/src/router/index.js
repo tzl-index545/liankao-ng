@@ -32,6 +32,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/problems/:id',
+    name: 'ProblemDetail',
+    component: () => import('../views/ProblemDetail.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/contests/:id',
     name: 'ContestDetail',
     component: () => import('../views/ContestDetail.vue'),
@@ -59,21 +65,12 @@ const router = createRouter({
 // 路由守卫
 router.beforeEach((to, from, next) => {
   const userStore = useUserStore()
-  console.log('Route guard:', {
-    to: to.path,
-    from: from.path,
-    isLoggedIn: userStore.isLoggedIn,
-    token: userStore.token
-  })
 
   if (to.meta.requiresAuth && !userStore.isLoggedIn) {
-    console.log('Redirecting to login')
     next('/login')
   } else if ((to.path === '/login' || to.path === '/register') && userStore.isLoggedIn) {
-    console.log('Redirecting to contests')
     next('/contests')
   } else {
-    console.log('Allowing navigation')
     next()
   }
 })

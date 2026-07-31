@@ -9,6 +9,7 @@ const ALLOWED_PATHS = new Set([
   '/JudgeOnline/modifypage.php',
   '/JudgeOnline/contest.php',
   '/JudgeOnline/contestrank.xls.php',
+  '/JudgeOnline/problem.php',
 ]);
 
 function response(statusCode, payload) {
@@ -30,6 +31,24 @@ function isValidPhpSessionId(id) {
 function isPositiveInteger(value) {
   const n = Number(value);
   return Number.isInteger(n) && n > 0;
+}
+
+function isNonNegativeInteger(value) {
+  const n = Number(value);
+  return /^\d+$/.test(String(value ?? '')) && Number.isSafeInteger(n) && n >= 0;
+}
+
+function requireExactSearchParams(url, expectedNames) {
+  const names = [...url.searchParams.keys()];
+  if (
+    names.length !== expectedNames.length ||
+    new Set(names).size !== names.length ||
+    expectedNames.some((name) => !names.includes(name))
+  ) {
+    const error = new Error('invalid url query parameters');
+    error.statusCode = 400;
+    throw error;
+  }
 }
 
 function getHeader(headers, name) {
@@ -67,7 +86,12 @@ function validateAllowedUrl(rawUrl) {
     throw error;
   }
 
-  if (url.protocol !== 'http:' || url.hostname !== 'xsy.gdgzez.com.cn') {
+  if (
+    url.origin !== 'http://xsy.gdgzez.com.cn' ||
+    url.username ||
+    url.password ||
+    url.hash
+  ) {
     const error = new Error('url host is not allowed');
     error.statusCode = 400;
     throw error;
@@ -79,9 +103,20 @@ function validateAllowedUrl(rawUrl) {
     throw error;
   }
 
-  if (url.pathname !== '/JudgeOnline/modifypage.php') {
+  if (url.pathname === '/JudgeOnline/modifypage.php') {
+    requireExactSearchParams(url, []);
+  } else if (url.pathname === '/JudgeOnline/problem.php') {
+    requireExactSearchParams(url, ['cid', 'pid']);
     const cid = url.searchParams.get('cid');
-    if (!isPositiveInteger(cid)) {
+    const pid = url.searchParams.get('pid');
+    if (!isPositiveInteger(cid) || !isNonNegativeInteger(pid)) {
+      const error = new Error('cid and pid must be valid integers');
+      error.statusCode = 400;
+      throw error;
+    }
+  } else {
+    requireExactSearchParams(url, ['cid']);
+    if (!isPositiveInteger(url.searchParams.get('cid'))) {
       const error = new Error('cid must be a positive integer');
       error.statusCode = 400;
       throw error;
@@ -207,6 +242,7 @@ module.exports._private = {
   ALLOWED_PATHS,
   fetchXsyHtml,
   isValidPhpSessionId,
+  isNonNegativeInteger,
   mainHandler,
   parseBody,
   validateAllowedUrl,

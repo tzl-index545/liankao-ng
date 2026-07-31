@@ -60,6 +60,7 @@ X-Internal-Token: <XSY_FETCHER_TOKEN>
 - `/JudgeOnline/modifypage.php`
 - `/JudgeOnline/contest.php?cid=<positive-int>`
 - `/JudgeOnline/contestrank.xls.php?cid=<positive-int>`
+- `/JudgeOnline/problem.php?cid=<positive-int>&pid=<non-negative-int>`
 
 ## Deploy
 

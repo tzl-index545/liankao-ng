@@ -1,89 +1,225 @@
-import * as cheerio from "cheerio";
-import { fetchHtml } from "./fetch"; 
 import { prisma } from "../prisma";
-import { syncLeaderboardByToken } from "./updateLeaderboard";
+import { parseXsyContestPage, type ParsedContestPage } from "./contestPage";
+import { fetchHtml } from "./fetch";
+import {
+  parseXsyProblemStatement,
+  type ParsedProblemStatement,
+} from "./problemStatement";
+import {
+  fetchLeaderboardByToken,
+  parseLeaderboardFromHtml,
+  type ContestProblemRow,
+} from "./updateLeaderboard";
+import { buildXsyContestUrl } from "./xsyUrl";
 
+const STATEMENT_FETCH_CONCURRENCY = 4;
 
-/**
- * 同步比赛信息：如果 ID 已存在则跳过，否则新建比赛和题目
- * @param url 比赛详情页 URL
- * @param phpSessionId PHP 登录凭证
- * @param contestId 比赛的唯一 ID
- */
-export async function syncContestInfo(phpSessionId: string, contestId: number) {
-  const url = "http://xsy.gdgzez.com.cn/JudgeOnline/contest.php?cid="+contestId;
-  // 1. 检查比赛是否已经存在
-  const existingContest = await prisma.contest.findUnique({
-    where: { id: contestId },
-    select: { id: true }
-  });
+type ScrapedProblem = ParsedContestPage["problems"][number] &
+  ParsedProblemStatement;
 
-  if (existingContest) {
-    console.log(`[Contest ${contestId}] 已经存在，跳过抓取。`);
-    return;
+type ScrapedContestBundle = Omit<ParsedContestPage, "problems"> & {
+  problems: ScrapedProblem[];
+};
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  mapper: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results = new Array<R>(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex++;
+      results[index] = await mapper(items[index]);
+    }
   }
 
-  // 2. 获取并解析 HTML
-  const htmlDocument = await fetchHtml(url, phpSessionId);
-  const $ = cheerio.load(htmlDocument);
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, () => worker()),
+  );
+  return results;
+}
 
-  // 提取并清理比赛名称 (去除 "ContestXXXX - " 前缀)
-  const rawContestName = $("#main > center > div > font:nth-child(1)").text().trim();
-  const contestName = rawContestName.split("-").pop()?.trim() || rawContestName;
+export async function scrapeContestBundle(
+  phpSessionId: string,
+  contestId: number,
+): Promise<ScrapedContestBundle> {
+  const contestHtml = await fetchHtml(buildXsyContestUrl(contestId), phpSessionId);
+  const contest = parseXsyContestPage(contestHtml, contestId);
+  const problems = await mapWithConcurrency(
+    contest.problems,
+    STATEMENT_FETCH_CONCURRENCY,
+    async (problem) => {
+      const problemHtml = await fetchHtml(problem.sourceUrl, phpSessionId);
+      return {
+        ...problem,
+        ...parseXsyProblemStatement(problemHtml, problem.sourceUrl),
+      };
+    },
+  );
 
-  // 提取时间
-  const startTimeStr = $("font[size=\"4px\"] > font[color=\"#993399\"]:first-of-type").text().trim();
-  const endTimeStr = $("font[size=\"4px\"] > font[color=\"#993399\"]:nth-of-type(2)").text().trim();
-  const parseDate = (s: string) => new Date(s.replace(" ", "T") + "+08:00");
+  return { ...contest, problems };
+}
 
-  // 提取描述 (基于你的选择器：第一道题目的最后一列)
-  const description = $("#problemset > tbody > tr:nth-child(1) > td:nth-child(4) > center").text().trim();
+export async function persistContestBundle(
+  bundle: ScrapedContestBundle,
+  leaderboardHtml: string,
+) {
+  const fetchedAt = new Date();
+  const standings = parseLeaderboardFromHtml(
+    leaderboardHtml,
+    bundle.problems.map((problem) => ({
+      problemId: problem.sourcePid,
+      order: problem.order,
+      problem: { name: problem.name },
+    })) satisfies ContestProblemRow[],
+  );
 
-  // 提取所有题目名称
-  const problemNames: string[] = [];
-  $("#problemset > tbody > tr").each((_, el) => {
-    const name = $(el).find("td:nth-child(3) > center > a").text().trim();
-    if (name) problemNames.push(name);
-  });
-
-  if (problemNames.length === 0) {
-    throw new Error(`Contest ${contestId} has no crawlable problems, contest will not be created.`);
-  }
-
-  // 3. 执行数据库写入事务
   await prisma.$transaction(async (tx) => {
-    // 创建比赛
-    const contest = await tx.contest.create({
-      data: {
-        id: contestId,
-        name: contestName,
-        description: description,
-        startTime: parseDate(startTimeStr),
-        endTime: parseDate(endTimeStr),
-      }
+    const contest = await tx.contest.upsert({
+      where: { id: bundle.id },
+      create: {
+        id: bundle.id,
+        name: bundle.name,
+        description: bundle.description,
+        startTime: bundle.startTime,
+        endTime: bundle.endTime,
+      },
+      update: {
+        name: bundle.name,
+        description: bundle.description,
+        startTime: bundle.startTime,
+        endTime: bundle.endTime,
+      },
+      select: { id: true },
     });
 
-    // 依次创建题目并关联
-    for (let i = 0; i < problemNames.length; i++) {
-      // 永远创建新题目 (即便重名也是新 ID)
-      const newProblem = await tx.problem.create({
-        data: {
-          name: problemNames[i],
-          description: `Description for ${problemNames[i]}`, 
-        }
-      });
+    const existingLinks = await tx.contestProblem.findMany({
+      where: { contestId: contest.id },
+      select: { problemId: true, sourcePid: true, order: true },
+    });
+    const sourcePidToProblemId = new Map<number, number>();
 
-      // 建立中间表关联
+    for (const problem of bundle.problems) {
+      const existingLink = existingLinks.find(
+        (link) =>
+          link.sourcePid === problem.sourcePid ||
+          (link.sourcePid === null && link.order === problem.order),
+      );
+
+      if (existingLink) {
+        sourcePidToProblemId.set(problem.sourcePid, existingLink.problemId);
+        await tx.problem.update({
+          where: { id: existingLink.problemId },
+          data: {
+            name: problem.name,
+            description: problem.description,
+            statementHtml: problem.statementHtml,
+            statementFetchedAt: fetchedAt,
+          },
+          select: { id: true },
+        });
+        await tx.contestProblem.update({
+          where: {
+            contestId_problemId: {
+              contestId: contest.id,
+              problemId: existingLink.problemId,
+            },
+          },
+          data: {
+            order: problem.order,
+            point: problem.point,
+            sourcePid: problem.sourcePid,
+            sourceUrl: problem.sourceUrl,
+          },
+          select: { contestId: true },
+        });
+        continue;
+      }
+
+      const createdProblem = await tx.problem.create({
+        data: {
+          name: problem.name,
+          description: problem.description,
+          statementHtml: problem.statementHtml,
+          statementFetchedAt: fetchedAt,
+        },
+        select: { id: true },
+      });
+      sourcePidToProblemId.set(problem.sourcePid, createdProblem.id);
       await tx.contestProblem.create({
         data: {
           contestId: contest.id,
-          problemId: newProblem.id,
-          order: i + 1,
-          point: 100
+          problemId: createdProblem.id,
+          order: problem.order,
+          point: problem.point,
+          sourcePid: problem.sourcePid,
+          sourceUrl: problem.sourceUrl,
+        },
+        select: { contestId: true },
+      });
+    }
+
+    for (const standing of standings) {
+      const existingUser = await tx.user.findUnique({
+        where: { xsyusername: standing.username },
+        select: { id: true },
+      });
+      const user = existingUser ?? (await tx.user.create({
+        data: {
+          xsyusername: standing.username,
+          nickname: standing.username,
+          realname: standing.realname,
+          rating: 1500,
+        },
+        select: { id: true },
+      }));
+
+      const scores: Record<string, number> = {};
+      for (const [sourcePidText, score] of Object.entries(standing.scores)) {
+        const problemId = sourcePidToProblemId.get(Number(sourcePidText));
+        if (problemId === undefined) {
+          throw new Error(`Leaderboard references unknown problem pid ${sourcePidText}`);
         }
+        scores[String(problemId)] = score;
+      }
+
+      await tx.participation.upsert({
+        where: {
+          userId_contestId: {
+            userId: user.id,
+            contestId: contest.id,
+          },
+        },
+        create: {
+          userId: user.id,
+          contestId: contest.id,
+          totalScore: standing.totalScore,
+          rank: standing.rank,
+          scores,
+        },
+        update: {
+          totalScore: standing.totalScore,
+          rank: standing.rank,
+          scores,
+        },
+        select: { id: true },
       });
     }
   });
-  await syncLeaderboardByToken(phpSessionId,contestId);
-  console.log(`✨ 成功创建比赛 [ID: ${contestId}] 及 ${problemNames.length} 道新题目。`);
+}
+
+/**
+ * Fetches and validates every upstream page before opening the write transaction.
+ * Existing contests are refreshed in place so failed imports remain retryable.
+ */
+export async function syncContestInfo(phpSessionId: string, contestId: number) {
+  const [bundle, leaderboardHtml] = await Promise.all([
+    scrapeContestBundle(phpSessionId, contestId),
+    fetchLeaderboardByToken(phpSessionId, contestId),
+  ]);
+
+  await persistContestBundle(bundle, leaderboardHtml);
 }

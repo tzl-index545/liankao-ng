@@ -18,13 +18,13 @@ export const authGuard = new Elysia({ name: 'auth.guard' })
     const authHeader = request.headers.get('authorization')
     if (!authHeader?.startsWith('Bearer ')) {
       set.status = 403
-      throw new Error('UNAUTHORIZED!!! Try to logout and login')
+      throw new Error('UNAUTHORIZED')
     }
     const token = authHeader.slice(7)
     const payload = await jwt.verify(token)
     if (!payload) {
       set.status = 403
-      throw new Error('INVALID_TOKEN!!! Try to logout and login')
+      throw new Error('INVALID_TOKEN')
     }
     return { user: payload as UserPayload }
   })
@@ -32,14 +32,11 @@ export const authGuard = new Elysia({ name: 'auth.guard' })
     if (code === 'UNKNOWN') {
       if (error.message === 'UNAUTHORIZED') {
         set.status = 403
-        return 'Unauthorized: Missing or invalid token'
+        return { success: false, message: 'Unauthorized: Missing or invalid token' }
       }
       else if (error.message === 'INVALID_TOKEN') {
         set.status = 403
-        return 'Forbidden: Token is invalid or expired'
-      }else{
-        set.status = 403;
-        return error;
+        return { success: false, message: 'Forbidden: Token is invalid or expired' }
       }
     }
   })

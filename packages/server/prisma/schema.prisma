@@ -47,6 +47,10 @@ model Problem {
   name         String
   /// 题目详细描述（支持 Markdown 或纯文本）
   description  String
+  /// 从上游抓取并清洗后的 HTML 题面；列表接口不返回
+  statementHtml String?
+  /// 最近一次成功抓取题面的时间
+  statementFetchedAt DateTime?
   /// 该题目被哪些比赛使用（通过中间表）
   contests ContestProblem[]
   votes    ProblemVote[]
@@ -83,6 +87,10 @@ model ContestProblem {
   point     Int @default(0)
   /// 题目在比赛中的显示顺序（越小越靠前）
   order     Int @default(0)
+  /// 题目在上游比赛中的零基 pid
+  sourcePid Int?
+  /// 题目在上游的原始页面 URL
+  sourceUrl String?
 
   /// 关联的比赛
   contest Contest @relation(fields: [contestId], references: [id], onDelete: Cascade)
@@ -90,6 +98,7 @@ model ContestProblem {
   problem Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
 
   @@id([contestId, problemId])
+  @@unique([contestId, sourcePid])
   @@index([contestId])
   @@index([problemId])
 }

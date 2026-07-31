@@ -93,6 +93,7 @@ describe('ContestService', () => {
         },
       },
     });
+    if ('code' in result) throw new Error('expected a successful ranklist response');
     expect(result.success).toBe(true);
     expect(result.data.map((row) => ({
       userId: row.userId,
@@ -154,6 +155,7 @@ describe('ContestService', () => {
         },
       },
     });
+    if ('code' in result) throw new Error('expected a successful problem list response');
     expect(result.success).toBe(true);
     expect(result.data).toEqual([
       {

@@ -35,7 +35,7 @@ export const create = new Elysia({
     },
     detail: {
       summary: '创建比赛并重算 rating',
-      description: '仅管理员可调用（由 ADMIN_NICKNAMES 控制）。传入 package.contestId 和 package.phpSessionId，使用本次请求提供的 PHPSESSID 抓取比赛、题目、榜单并自动重算 rating；若未爬到题目则不会创建比赛。',
+      description: '仅管理员可调用（由 ADMIN_NICKNAMES 控制）。传入 package.contestId 和 package.phpSessionId，使用本次请求提供的 PHPSESSID 抓取比赛、完整题面和榜单并自动重算 rating；抓取结果校验失败时不会写入比赛。',
     },
   })
   .post('/contest/crawl', ({ body, user }) => {
@@ -53,7 +53,7 @@ export const create = new Elysia({
     },
     detail: {
       summary: '抓取比赛',
-      description: '登录用户可调用。传入 package.contestId 和 package.phpSessionId，使用本次请求提供的 PHPSESSID 抓取比赛、题目和榜单；若未爬到题目则不会创建比赛。',
+      description: '登录用户可调用。传入 package.contestId 和 package.phpSessionId，使用本次请求提供的 PHPSESSID 抓取比赛、完整题面和榜单；已有比赛会原位刷新并补齐题面。',
     },
   })
   .post('/contest/rating', ({ body, user }) => {
