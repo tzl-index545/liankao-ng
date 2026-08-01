@@ -5,14 +5,11 @@
       <div class="header-top">
         <h1>比赛列表</h1>
         <div class="contest-actions">
-          <el-input-number
-            v-model="contestOperationId"
+          <el-input
+            v-model="contestOperationInput"
             class="contest-id-input"
-            :min="1"
-            :precision="0"
-            :step="1"
-            controls-position="right"
-            placeholder="比赛 ID"
+            clearable
+            placeholder="比赛 ID/区间（最多 50 场）"
           />
           <el-input
             v-model="phpSessionId"
@@ -28,11 +25,13 @@
             :loading="crawlingContest"
             @click="handleCrawlContest"
           >
-            爬取比赛
+            {{ crawlingContest && crawlProgress.totalCount > 1
+              ? `爬取中 ${crawlProgress.attemptedCount}/${crawlProgress.totalCount}`
+              : '爬取比赛' }}
           </el-button>
           <el-button
             type="warning"
-            :disabled="!canRunContestOperation || crawlingContest"
+            :disabled="!canCalculateRating || crawlingContest"
             :loading="calculatingRating"
             @click="handleCalculateRating"
           >
@@ -147,10 +146,11 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElTable, ElTableColumn, ElSelect, ElOption, ElPagination, ElEmpty, ElDialog, ElButton, ElInput, ElInputNumber, ElIcon, ElMessage, ElMessageBox } from 'element-plus'
+import { ElTable, ElTableColumn, ElSelect, ElOption, ElPagination, ElEmpty, ElDialog, ElButton, ElInput, ElIcon, ElMessage, ElMessageBox } from 'element-plus'
 import { Dessert, Trophy } from '@element-plus/icons-vue'
 import { calculateContestRating, crawlContest, getContestList, toggleContestRated, voteContest } from '../api/contest'
 import QualityScore from '../components/QualityScore.vue'
+import { crawlContestsSequentially, formatContestCrawlSummary, parseContestCrawlInput } from '../utils/contestCrawl'
 
 const router = useRouter()
 const loading = ref(false)
@@ -165,19 +165,20 @@ const activeContest = ref(null)
 const selectedVoteScore = ref(null)
 const isZeroMode = ref(false)
 const submittingVote = ref(false)
-const contestOperationId = ref(null)
+const contestOperationInput = ref('')
 const phpSessionId = ref('')
 const crawlingContest = ref(false)
+const crawlProgress = ref({ attemptedCount: 0, totalCount: 0 })
 const calculatingRating = ref(false)
 const togglingRatedContestId = ref(null)
 
 const canSubmitVote = computed(() => selectedVoteScore.value !== null)
 const normalizedPhpSessionId = computed(() => phpSessionId.value.trim())
-const canRunContestOperation = computed(() => {
-  const contestId = Number(contestOperationId.value)
-  return Number.isInteger(contestId) && contestId > 0
+const parsedContestOperation = computed(() => parseContestCrawlInput(contestOperationInput.value))
+const canCalculateRating = computed(() => {
+  return parsedContestOperation.value.valid && parsedContestOperation.value.kind === 'single'
 })
-const canCrawlContest = computed(() => canRunContestOperation.value && normalizedPhpSessionId.value.length > 0)
+const canCrawlContest = computed(() => parsedContestOperation.value.valid && normalizedPhpSessionId.value.length > 0)
 
 const fetchContests = async () => {
   loading.value = true
@@ -272,11 +273,12 @@ const resetVoteState = () => {
   submittingVote.value = false
 }
 
-const getContestOperationId = () => Number(contestOperationId.value)
+const getContestOperationId = () => parsedContestOperation.value.contestIds[0]
 
 const handleCrawlContest = async () => {
-  if (!canRunContestOperation.value) {
-    ElMessage.warning('请输入有效的比赛 ID')
+  const parsedInput = parsedContestOperation.value
+  if (!parsedInput.valid) {
+    ElMessage.warning(parsedInput.message)
     return
   }
   if (!normalizedPhpSessionId.value) {
@@ -285,22 +287,47 @@ const handleCrawlContest = async () => {
   }
 
   crawlingContest.value = true
+  crawlProgress.value = {
+    attemptedCount: 0,
+    totalCount: parsedInput.contestIds.length
+  }
   try {
-    const res = await crawlContest(getContestOperationId(), normalizedPhpSessionId.value)
-    ElMessage.success(res?.message || '爬取比赛成功')
-    currentPage.value = 1
-    fetchContests()
+    const phpSessionId = normalizedPhpSessionId.value
+    const result = await crawlContestsSequentially(
+      parsedInput.contestIds,
+      (contestId) => crawlContest(contestId, phpSessionId),
+      {
+        onProgress: ({ attemptedCount, totalCount }) => {
+          crawlProgress.value = { attemptedCount, totalCount }
+        }
+      }
+    )
+    const message = formatContestCrawlSummary(result)
+    const messageOptions = { message, duration: 10000, showClose: true }
+    if (result.failures.length === 0) {
+      ElMessage.success(messageOptions)
+    } else if (result.successes.length === 0) {
+      ElMessage.error(messageOptions)
+    } else {
+      ElMessage.warning(messageOptions)
+    }
+
+    if (result.successes.length > 0) {
+      currentPage.value = 1
+      await fetchContests()
+    }
   } catch (error) {
     ElMessage.error(error?.message || '爬取比赛失败')
   } finally {
     phpSessionId.value = ''
     crawlingContest.value = false
+    crawlProgress.value = { attemptedCount: 0, totalCount: 0 }
   }
 }
 
 const handleCalculateRating = async () => {
-  if (!canRunContestOperation.value) {
-    ElMessage.warning('请输入有效的比赛 ID')
+  if (!canCalculateRating.value) {
+    ElMessage.warning('计算 rating 仅支持单个有效的比赛 ID')
     return
   }
 
