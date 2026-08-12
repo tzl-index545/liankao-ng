@@ -8,13 +8,16 @@
           <el-input
             v-model="contestOperationInput"
             class="contest-id-input"
+            name="contest-crawl-range"
+            autocomplete="off"
             clearable
             placeholder="比赛 ID/区间（最多 50 场）"
           />
           <el-input
             v-model="phpSessionId"
             class="session-input"
-            type="password"
+            name="xsy-session-token"
+            type="text"
             clearable
             autocomplete="off"
             placeholder="PHPSESSID"
@@ -449,6 +452,11 @@ onMounted(() => {
 .session-input {
   width: 220px;
 }
+
+.session-input :deep(.el-input__inner) {
+  -webkit-text-security: disc;
+}
+
 .sort-bar {
   display: flex;
   gap: 8px;
