@@ -4,7 +4,9 @@
   "scripts": {
     "test": "bun test src",
     "dev": "bun run --watch src/index.ts",
-    "search:reindex": "bun run src/scripts/reindexProblemSearch.ts"
+    "search:reindex": "bun run src/scripts/reindexProblemSearch.ts",
+    "yuantiji:index": "bun run src/scripts/indexYuantiji.ts",
+    "yuantiji:index:full": "bun run src/scripts/indexYuantiji.ts --force"
   },
   "dependencies": {
     "@elysiajs/cors": "^1.4.1",

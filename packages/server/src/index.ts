@@ -7,6 +7,7 @@ import { vote } from "./modules/vote"
 import { rating } from "./modules/rating"
 import { create } from "./modules/create"
 import { user } from "./modules/user"
+import { yuantiji } from "./modules/yuantiji"
 import openapi from "@elysiajs/openapi";
 import { env } from "./config/env";
 
@@ -25,6 +26,7 @@ const app = new Elysia({ prefix: '/api' })
     .use(rating)
     .use(create)
     .use(user)
+    .use(yuantiji)
     .use(openapi({
       documentation: {
         info: {
@@ -39,6 +41,7 @@ const app = new Elysia({ prefix: '/api' })
           { name: 'rating', description: '等级分查询' },
           { name: 'create', description: '抓取比赛与计算 rating（需登录）' },
           { name: 'user', description: '用户查询' },
+          { name: 'yuantiji', description: '原题机语义匹配（需登录）' },
         ],
         components: {
           securitySchemes: {

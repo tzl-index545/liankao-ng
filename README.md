@@ -44,9 +44,42 @@ XSY_FETCHER_URL=
 XSY_FETCHER_TOKEN=
 MEILI_HOST=http://127.0.0.1:7700
 MEILI_API_KEY=
+YUANTIJI_CHAT_ENDPOINT=https://api.deepseek.com/chat/completions
+YUANTIJI_CHAT_API_KEY=
+YUANTIJI_CHAT_MODEL=deepseek-v4-flash
+YUANTIJI_EMBEDDING_ENDPOINT=https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings
+YUANTIJI_EMBEDDING_API_KEY=
+YUANTIJI_EMBEDDING_MODEL=qwen3.7-text-embedding
+YUANTIJI_TIMEOUT_MS=120000
 ```
 
 `XSY_FETCHER_URL` 和 `XSY_FETCHER_TOKEN` 可选。配置后，后端访问小视野的请求会转发到国内 `xsy-fetcher` 云函数；不配置时仍然直连小视野。
+
+原题机的简化题意和 embedding 使用两组互相独立的 OpenAI-compatible 完整端点、API key 与模型名。题库和查询必须使用同一个 embedding 配置。
+
+## 原题机索引
+
+先应用 Prisma 迁移并重新生成 Client：
+
+```bash
+cd packages/server
+bunx --bun prisma migrate deploy
+bunx --bun prisma generate
+```
+
+增量处理新增或题面、prompt、模型配置发生变化的题目：
+
+```bash
+bun run yuantiji:index
+```
+
+强制重新生成全部已有完整题面的题目：
+
+```bash
+bun run yuantiji:index:full
+```
+
+没有 `statementHtml` 的题目会被跳过。简化题意与归一化后的 embedding 缓存在 SQLite 中，在线查询时由后端直接计算余弦相似度，不依赖 Meilisearch。
 
 ## Meilisearch 部署
 

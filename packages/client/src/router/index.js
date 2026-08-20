@@ -38,6 +38,12 @@ const routes = [
     meta: { requiresAuth: true }
   },
   {
+    path: '/yuantiji',
+    name: 'Yuantiji',
+    component: () => import('../views/Yuantiji.vue'),
+    meta: { requiresAuth: true }
+  },
+  {
     path: '/contests/:id',
     name: 'ContestDetail',
     component: () => import('../views/ContestDetail.vue'),

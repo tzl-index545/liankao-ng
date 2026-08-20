@@ -13,6 +13,7 @@
       <div class="menu-items">
         <el-menu-item index="/contests">比赛列表</el-menu-item>
         <el-menu-item index="/problems">题目列表</el-menu-item>
+        <el-menu-item index="/yuantiji">原题机</el-menu-item>
         <el-menu-item index="/users">用户列表</el-menu-item>
       </div>
       <div class="user-info">

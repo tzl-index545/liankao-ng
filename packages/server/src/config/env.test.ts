@@ -15,6 +15,13 @@ describe("readServerEnv", () => {
         XSY_FETCHER_TIMEOUT_MS: "2500",
         MEILI_HOST: "http://127.0.0.1:7701///",
         MEILI_API_KEY: "meili-key",
+        YUANTIJI_CHAT_ENDPOINT: " https://chat.example/v1/chat/completions ",
+        YUANTIJI_CHAT_API_KEY: " chat-key ",
+        YUANTIJI_CHAT_MODEL: " chat-model ",
+        YUANTIJI_EMBEDDING_ENDPOINT: " https://embedding.example/v1/embeddings ",
+        YUANTIJI_EMBEDDING_API_KEY: " embedding-key ",
+        YUANTIJI_EMBEDDING_MODEL: " embedding-model ",
+        YUANTIJI_TIMEOUT_MS: "60000",
       }),
     ).toEqual({
       jwtSecret: "secret",
@@ -27,6 +34,13 @@ describe("readServerEnv", () => {
       xsyFetcherTimeoutMs: 2500,
       meiliHost: "http://127.0.0.1:7701",
       meiliApiKey: "meili-key",
+      yuantijiChatEndpoint: "https://chat.example/v1/chat/completions",
+      yuantijiChatApiKey: "chat-key",
+      yuantijiChatModel: "chat-model",
+      yuantijiEmbeddingEndpoint: "https://embedding.example/v1/embeddings",
+      yuantijiEmbeddingApiKey: "embedding-key",
+      yuantijiEmbeddingModel: "embedding-model",
+      yuantijiTimeoutMs: 60000,
     });
   });
 
@@ -45,6 +59,13 @@ describe("readServerEnv", () => {
       xsyFetcherTimeoutMs: 10000,
       meiliHost: "http://127.0.0.1:7700",
       meiliApiKey: undefined,
+      yuantijiChatEndpoint: undefined,
+      yuantijiChatApiKey: undefined,
+      yuantijiChatModel: undefined,
+      yuantijiEmbeddingEndpoint: undefined,
+      yuantijiEmbeddingApiKey: undefined,
+      yuantijiEmbeddingModel: undefined,
+      yuantijiTimeoutMs: 120000,
     });
   });
 
@@ -60,5 +81,13 @@ describe("readServerEnv", () => {
         JWT_SECRET: "secret",
       }),
     ).toThrow("DATABASE_URL is required");
+  });
+
+  it("rejects an invalid yuantiji timeout", () => {
+    expect(() => readServerEnv({
+      JWT_SECRET: "secret",
+      DATABASE_URL: "file:dev.db",
+      YUANTIJI_TIMEOUT_MS: "0",
+    })).toThrow("YUANTIJI_TIMEOUT_MS must be a positive number");
   });
 });

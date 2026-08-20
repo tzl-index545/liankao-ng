@@ -4,6 +4,7 @@ const DEFAULT_PORT = 3000;
 const DEFAULT_HOST = "0.0.0.0";
 const DEFAULT_XSY_FETCHER_TIMEOUT_MS = 10000;
 const DEFAULT_MEILI_HOST = "http://127.0.0.1:7700";
+const DEFAULT_YUANTIJI_TIMEOUT_MS = 120000;
 
 function requireEnv(source: EnvSource, name: "JWT_SECRET" | "DATABASE_URL") {
   const value = source[name];
@@ -40,6 +41,19 @@ function readMeiliHost(source: EnvSource) {
   return (source.MEILI_HOST ?? DEFAULT_MEILI_HOST).replace(/\/+$/, "");
 }
 
+function readOptional(value: string | undefined) {
+  const normalized = value?.trim();
+  return normalized || undefined;
+}
+
+function readYuantijiTimeoutMs(source: EnvSource) {
+  const timeoutMs = Number(source.YUANTIJI_TIMEOUT_MS ?? DEFAULT_YUANTIJI_TIMEOUT_MS);
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    throw new Error("YUANTIJI_TIMEOUT_MS must be a positive number");
+  }
+  return timeoutMs;
+}
+
 export function readServerEnv(source: EnvSource = process.env) {
   return {
     jwtSecret: requireEnv(source, "JWT_SECRET"),
@@ -52,6 +66,13 @@ export function readServerEnv(source: EnvSource = process.env) {
     xsyFetcherTimeoutMs: readXsyFetcherTimeoutMs(source),
     meiliHost: readMeiliHost(source),
     meiliApiKey: source.MEILI_API_KEY,
+    yuantijiChatEndpoint: readOptional(source.YUANTIJI_CHAT_ENDPOINT),
+    yuantijiChatApiKey: readOptional(source.YUANTIJI_CHAT_API_KEY),
+    yuantijiChatModel: readOptional(source.YUANTIJI_CHAT_MODEL),
+    yuantijiEmbeddingEndpoint: readOptional(source.YUANTIJI_EMBEDDING_ENDPOINT),
+    yuantijiEmbeddingApiKey: readOptional(source.YUANTIJI_EMBEDDING_API_KEY),
+    yuantijiEmbeddingModel: readOptional(source.YUANTIJI_EMBEDDING_MODEL),
+    yuantijiTimeoutMs: readYuantijiTimeoutMs(source),
   };
 }
 
@@ -85,5 +106,26 @@ export const env = {
   },
   get meiliApiKey() {
     return process.env.MEILI_API_KEY;
+  },
+  get yuantijiChatEndpoint() {
+    return readOptional(process.env.YUANTIJI_CHAT_ENDPOINT);
+  },
+  get yuantijiChatApiKey() {
+    return readOptional(process.env.YUANTIJI_CHAT_API_KEY);
+  },
+  get yuantijiChatModel() {
+    return readOptional(process.env.YUANTIJI_CHAT_MODEL);
+  },
+  get yuantijiEmbeddingEndpoint() {
+    return readOptional(process.env.YUANTIJI_EMBEDDING_ENDPOINT);
+  },
+  get yuantijiEmbeddingApiKey() {
+    return readOptional(process.env.YUANTIJI_EMBEDDING_API_KEY);
+  },
+  get yuantijiEmbeddingModel() {
+    return readOptional(process.env.YUANTIJI_EMBEDDING_MODEL);
+  },
+  get yuantijiTimeoutMs() {
+    return readYuantijiTimeoutMs(process.env);
   },
 };
