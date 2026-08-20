@@ -24,20 +24,20 @@ REMOVE:
 
 RULES:
 
+* Use MathJax `$...$` for mathematical notation. NEVER USE \(\) FOR IT!
 * Output in English only.
 * Preserve the original formulation of the core problem whenever possible.
 * Simplify wording, but do not replace a condition with a derived or mathematically equivalent characterization.
 * Do not solve the problem or infer additional properties.
 * Do not repeat the same information in different words.
 * Use standard mathematical terminology without explaining it.
-* Use MathJax `$...$` for mathematical notation.
 * Keep all conditions that affect which instances or solutions are valid.
 * Be concise, but never sacrifice correctness for brevity.
 
 Output exactly this structure and nothing else:
 
 <SIMPLIFIED_STATEMENT>
-[one concise English paragraph]
+[one concise English paragraph, use $...$ for MathJax]
 </SIMPLIFIED_STATEMENT>
 
 Example:
@@ -53,4 +53,3 @@ Find the minimum number of vertex colors such that no simple path of at least tw
 Original statement:
 
 [[ORIGINAL]]
-g

@@ -22,6 +22,7 @@ describe("readServerEnv", () => {
         YUANTIJI_EMBEDDING_API_KEY: " embedding-key ",
         YUANTIJI_EMBEDDING_MODEL: " embedding-model ",
         YUANTIJI_TIMEOUT_MS: "60000",
+        YUANTIJI_INDEX_CONCURRENCY: "12",
       }),
     ).toEqual({
       jwtSecret: "secret",
@@ -41,6 +42,7 @@ describe("readServerEnv", () => {
       yuantijiEmbeddingApiKey: "embedding-key",
       yuantijiEmbeddingModel: "embedding-model",
       yuantijiTimeoutMs: 60000,
+      yuantijiIndexConcurrency: 12,
     });
   });
 
@@ -66,6 +68,7 @@ describe("readServerEnv", () => {
       yuantijiEmbeddingApiKey: undefined,
       yuantijiEmbeddingModel: undefined,
       yuantijiTimeoutMs: 120000,
+      yuantijiIndexConcurrency: 8,
     });
   });
 
@@ -89,5 +92,15 @@ describe("readServerEnv", () => {
       DATABASE_URL: "file:dev.db",
       YUANTIJI_TIMEOUT_MS: "0",
     })).toThrow("YUANTIJI_TIMEOUT_MS must be a positive number");
+  });
+
+  it("rejects an invalid yuantiji index concurrency", () => {
+    for (const value of ["0", "33", "1.5", "invalid"]) {
+      expect(() => readServerEnv({
+        JWT_SECRET: "secret",
+        DATABASE_URL: "file:dev.db",
+        YUANTIJI_INDEX_CONCURRENCY: value,
+      })).toThrow("YUANTIJI_INDEX_CONCURRENCY must be an integer between 1 and 32");
+    }
   });
 });

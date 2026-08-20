@@ -51,11 +51,12 @@ YUANTIJI_EMBEDDING_ENDPOINT=https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/c
 YUANTIJI_EMBEDDING_API_KEY=
 YUANTIJI_EMBEDDING_MODEL=qwen3.7-text-embedding
 YUANTIJI_TIMEOUT_MS=120000
+YUANTIJI_INDEX_CONCURRENCY=8
 ```
 
 `XSY_FETCHER_URL` 和 `XSY_FETCHER_TOKEN` 可选。配置后，后端访问小视野的请求会转发到国内 `xsy-fetcher` 云函数；不配置时仍然直连小视野。
 
-原题机的简化题意和 embedding 使用两组互相独立的 OpenAI-compatible 完整端点、API key 与模型名。题库和查询必须使用同一个 embedding 配置。
+原题机的简化题意和 embedding 使用两组互相独立的 OpenAI-compatible 完整端点、API key 与模型名。题库和查询必须使用同一个 embedding 配置。`YUANTIJI_INDEX_CONCURRENCY` 控制索引脚本同时处理的题目数，默认为 8，可配置为 1～32。
 
 ## 原题机索引
 

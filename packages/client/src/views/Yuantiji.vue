@@ -52,9 +52,14 @@
           <el-table-column label="题目" min-width="420">
             <template #default="{ row }">
               <div class="problem-main">
-                <el-button type="primary" link class="problem-link" @click="goToProblem(row.id)">
+                <router-link
+                  :to="`/problems/${row.id}`"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="problem-link"
+                >
                   {{ row.name }}
-                </el-button>
+                </router-link>
                 <div class="problem-description">{{ row.description || '-' }}</div>
               </div>
             </template>
@@ -68,11 +73,9 @@
 
 <script setup>
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
 import { ElButton, ElCard, ElEmpty, ElInput, ElMessage, ElTable, ElTableColumn, ElTag } from 'element-plus'
 import { searchYuantiji } from '../api/yuantiji'
 
-const router = useRouter()
 const statement = ref('')
 const loading = ref(false)
 const searched = ref(false)
@@ -113,9 +116,6 @@ const similarityType = (similarity) => {
   return 'info'
 }
 
-const goToProblem = (id) => {
-  router.push(`/problems/${id}`)
-}
 </script>
 
 <style scoped>
@@ -177,9 +177,14 @@ const goToProblem = (id) => {
 }
 
 .problem-link {
-  justify-content: flex-start;
-  padding: 0;
+  align-self: flex-start;
+  color: var(--el-color-primary);
   font-size: 15px;
+  text-decoration: none;
+}
+
+.problem-link:hover {
+  color: var(--el-color-primary-light-3);
 }
 
 .problem-description {

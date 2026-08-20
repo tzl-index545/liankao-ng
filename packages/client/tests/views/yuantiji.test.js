@@ -57,15 +57,15 @@ describe('Yuantiji view', () => {
     expect(wrapper.text()).toContain('LIS')
   })
 
-  it('opens a matched problem', async () => {
-    const { wrapper, router } = await mountYuantiji()
+  it('opens a matched problem in a new tab', async () => {
+    const { wrapper } = await mountYuantiji()
     await wrapper.get('textarea[aria-label="待匹配题面"]').setValue('求 LIS')
     await wrapper.get('button').trigger('click')
     await flushPromises()
-    const problemButton = wrapper.findAll('button').find((button) => button.text().includes('LIS'))
-    await problemButton.trigger('click')
-    await flushPromises()
+    const problemLink = wrapper.get('a.problem-link')
 
-    expect(router.currentRoute.value.path).toBe('/problems/42')
+    expect(problemLink.attributes('href')).toBe('/problems/42')
+    expect(problemLink.attributes('target')).toBe('_blank')
+    expect(problemLink.attributes('rel')).toBe('noopener noreferrer')
   })
 })

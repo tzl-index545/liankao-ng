@@ -5,6 +5,7 @@ const DEFAULT_HOST = "0.0.0.0";
 const DEFAULT_XSY_FETCHER_TIMEOUT_MS = 10000;
 const DEFAULT_MEILI_HOST = "http://127.0.0.1:7700";
 const DEFAULT_YUANTIJI_TIMEOUT_MS = 120000;
+const DEFAULT_YUANTIJI_INDEX_CONCURRENCY = 8;
 
 function requireEnv(source: EnvSource, name: "JWT_SECRET" | "DATABASE_URL") {
   const value = source[name];
@@ -54,6 +55,16 @@ function readYuantijiTimeoutMs(source: EnvSource) {
   return timeoutMs;
 }
 
+function readYuantijiIndexConcurrency(source: EnvSource) {
+  const concurrency = Number(
+    source.YUANTIJI_INDEX_CONCURRENCY ?? DEFAULT_YUANTIJI_INDEX_CONCURRENCY,
+  );
+  if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 32) {
+    throw new Error("YUANTIJI_INDEX_CONCURRENCY must be an integer between 1 and 32");
+  }
+  return concurrency;
+}
+
 export function readServerEnv(source: EnvSource = process.env) {
   return {
     jwtSecret: requireEnv(source, "JWT_SECRET"),
@@ -73,6 +84,7 @@ export function readServerEnv(source: EnvSource = process.env) {
     yuantijiEmbeddingApiKey: readOptional(source.YUANTIJI_EMBEDDING_API_KEY),
     yuantijiEmbeddingModel: readOptional(source.YUANTIJI_EMBEDDING_MODEL),
     yuantijiTimeoutMs: readYuantijiTimeoutMs(source),
+    yuantijiIndexConcurrency: readYuantijiIndexConcurrency(source),
   };
 }
 
@@ -127,5 +139,8 @@ export const env = {
   },
   get yuantijiTimeoutMs() {
     return readYuantijiTimeoutMs(process.env);
+  },
+  get yuantijiIndexConcurrency() {
+    return readYuantijiIndexConcurrency(process.env);
   },
 };

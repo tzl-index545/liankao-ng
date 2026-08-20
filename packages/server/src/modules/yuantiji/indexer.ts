@@ -1,4 +1,5 @@
 import { prisma } from '../../prisma'
+import { env } from '../../config/env'
 import {
   embedderHash,
   getYuantijiConfig,
@@ -10,6 +11,7 @@ import { readYuantijiPrompt } from './prompt'
 import { formatYuantijiProgress } from './progress'
 import { statementHtmlToYuantijiText } from './text'
 import { encodeEmbedding, normalizeEmbedding } from './vector'
+import { runWithConcurrency } from './workerPool'
 
 export type YuantijiIndexStats = {
   total: number
@@ -42,7 +44,7 @@ export async function indexYuantijiProblems(force = false): Promise<YuantijiInde
     failed: 0,
   }
 
-  for (const [problemIndex, problem] of problems.entries()) {
+  await runWithConcurrency(problems, env.yuantijiIndexConcurrency, async (problem, problemIndex) => {
     const current = problemIndex + 1
     const log = (message: string) => console.log(
       formatYuantijiProgress(current, problems.length, problem.id, message),
@@ -57,7 +59,7 @@ export async function indexYuantijiProblems(force = false): Promise<YuantijiInde
       }
       stats.missingStatement += 1
       log('缺少题面，跳过')
-      continue
+      return
     }
 
     const statement = statementHtmlToYuantijiText(problem.statementHtml)
@@ -67,7 +69,7 @@ export async function indexYuantijiProblems(force = false): Promise<YuantijiInde
       }
       stats.missingStatement += 1
       log('清洗后题面为空，跳过')
-      continue
+      return
     }
 
     const sourceHash = sha256(statement)
@@ -82,7 +84,7 @@ export async function indexYuantijiProblems(force = false): Promise<YuantijiInde
     ) {
       stats.unchanged += 1
       log('索引未变化，跳过')
-      continue
+      return
     }
 
     let phase = '简化题意'
@@ -134,7 +136,7 @@ export async function indexYuantijiProblems(force = false): Promise<YuantijiInde
       const message = error instanceof Error ? error.message : 'Unknown error'
       logError(`${phase}失败（${problem.name}）：${message}`)
     }
-  }
+  })
 
   return stats
 }
