@@ -49,6 +49,8 @@ export class YuantijiModelClient {
       {
         model: this.config.chatModel,
         messages: [{ role: 'user', content: buildYuantijiPrompt(promptTemplate, statement) }],
+        thinking: { type: 'enabled' },
+        reasoning_effort: 'low',
       },
     )
     const content = response.choices?.[0]?.message?.content

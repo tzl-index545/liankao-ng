@@ -18,7 +18,11 @@ describe('YuantijiModelClient', () => {
       const url = String(input)
       if (url === config.chatEndpoint) {
         expect(init?.headers).toMatchObject({ Authorization: 'Bearer chat-key' })
-        expect(JSON.parse(String(init?.body))).toMatchObject({ model: 'chat-model' })
+        expect(JSON.parse(String(init?.body))).toMatchObject({
+          model: 'chat-model',
+          thinking: { type: 'enabled' },
+          reasoning_effort: 'low',
+        })
         return Response.json({
           choices: [{ message: { content: '<SIMPLIFIED_STATEMENT>Add two integers.</SIMPLIFIED_STATEMENT>' } }],
         })
