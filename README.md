@@ -42,6 +42,81 @@ JWT_SECRET="change-this-secret"
 ADMIN_NICKNAMES=alice,bob,admin
 XSY_FETCHER_URL=
 XSY_FETCHER_TOKEN=
+MEILI_HOST=http://127.0.0.1:7700
+MEILI_API_KEY=
 ```
 
 `XSY_FETCHER_URL` 和 `XSY_FETCHER_TOKEN` 可选。配置后，后端访问小视野的请求会转发到国内 `xsy-fetcher` 云函数；不配置时仍然直连小视野。
+
+## Meilisearch 部署
+
+以 Ubuntu 22.04 或更高版本为例，安装最新的 Meilisearch 原生二进制：
+
+```bash
+curl -L https://install.meilisearch.com | sh
+sudo install -m 0755 meilisearch /usr/local/bin/meilisearch
+sudo useradd --system --home /var/lib/meilisearch --shell /usr/sbin/nologin meilisearch
+sudo install -d -o meilisearch -g meilisearch /var/lib/meilisearch
+```
+
+生成一个至少 16 字节的 `MEILI_MASTER_KEY`，然后创建 `/etc/meilisearch.env`：
+
+```env
+MEILI_ENV=production
+MEILI_HTTP_ADDR=127.0.0.1:7700
+MEILI_DB_PATH=/var/lib/meilisearch/data.ms
+MEILI_MASTER_KEY=替换为随机密钥
+MEILI_MAX_INDEXING_MEMORY=1Gb
+MEILI_MAX_INDEXING_THREADS=1
+```
+
+创建 `/etc/systemd/system/meilisearch.service`：
+
+```ini
+[Unit]
+Description=Meilisearch
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=meilisearch
+Group=meilisearch
+EnvironmentFile=/etc/meilisearch.env
+ExecStart=/usr/local/bin/meilisearch
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/meilisearch
+
+[Install]
+WantedBy=multi-user.target
+```
+
+启动并验证：
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now meilisearch
+curl -fsS http://127.0.0.1:7700/health
+```
+
+在后端的环境文件中增加：
+
+```env
+MEILI_HOST=http://127.0.0.1:7700
+MEILI_API_KEY=与_MEILI_MASTER_KEY_相同
+```
+
+部署新版后初始化索引，再重启后端：
+
+```bash
+cd packages/server
+bun run search:reindex
+sudo systemctl restart liankao-server
+```
+
+Meilisearch 只监听 `127.0.0.1`，无需在 Nginx 或防火墙中对外开放 `7700` 端口。

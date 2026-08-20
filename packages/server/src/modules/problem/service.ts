@@ -3,6 +3,7 @@ import { Prisma } from '../../generated/prisma/client'
 import { prisma } from '../../prisma'
 import { buildPageMeta, parsePagination } from '../../lib/pagination'
 import type { ProblemListQuery } from './model'
+import { ProblemSearchService } from './search'
 
 function problemOrderBy(order: string | undefined): Prisma.ProblemOrderByWithRelationInput[] {
   if (order === 'qualities-desc') return [{ qualities: 'desc' }, { id: 'desc' }]
@@ -17,6 +18,41 @@ export abstract class ProblemService {
   static async list(query: ProblemListQuery) {
     const { page, pageSize, skip } = parsePagination(query.page, query.pageSize)
     const orderBy = problemOrderBy(query.order)
+    const searchQuery = query.q?.trim()
+    if (searchQuery) {
+      try {
+        const result = await ProblemSearchService.search(searchQuery, page, pageSize, query.order)
+        const rows = result.ids.length === 0 ? [] : await prisma.problem.findMany({
+          where: { id: { in: result.ids } },
+          select: {
+            id: true,
+            difficulties: true,
+            qualities: true,
+            name: true,
+            description: true,
+          },
+        })
+        const rowById = new Map(rows.map((row) => [row.id, row]))
+        const items = result.ids.flatMap((id) => {
+          const row = rowById.get(id)
+          return row ? [row] : []
+        })
+        return {
+          success: true as const,
+          data: {
+            items,
+            ...buildPageMeta(result.total, page, pageSize),
+          },
+        }
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : 'Unknown error'
+        console.error(`Problem search failed: ${message}`)
+        return status(503, {
+          success: false as const,
+          message: 'Problem search is temporarily unavailable',
+        })
+      }
+    }
     const [total, items] = await prisma.$transaction([
       prisma.problem.count(),
       prisma.problem.findMany({

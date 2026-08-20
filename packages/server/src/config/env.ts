@@ -3,6 +3,7 @@ type EnvSource = Record<string, string | undefined>;
 const DEFAULT_PORT = 3000;
 const DEFAULT_HOST = "0.0.0.0";
 const DEFAULT_XSY_FETCHER_TIMEOUT_MS = 10000;
+const DEFAULT_MEILI_HOST = "http://127.0.0.1:7700";
 
 function requireEnv(source: EnvSource, name: "JWT_SECRET" | "DATABASE_URL") {
   const value = source[name];
@@ -35,6 +36,10 @@ function readXsyFetcherTimeoutMs(source: EnvSource) {
   return Number(source.XSY_FETCHER_TIMEOUT_MS ?? DEFAULT_XSY_FETCHER_TIMEOUT_MS);
 }
 
+function readMeiliHost(source: EnvSource) {
+  return (source.MEILI_HOST ?? DEFAULT_MEILI_HOST).replace(/\/+$/, "");
+}
+
 export function readServerEnv(source: EnvSource = process.env) {
   return {
     jwtSecret: requireEnv(source, "JWT_SECRET"),
@@ -45,6 +50,8 @@ export function readServerEnv(source: EnvSource = process.env) {
     xsyFetcherUrl: readXsyFetcherUrl(source),
     xsyFetcherToken: source.XSY_FETCHER_TOKEN,
     xsyFetcherTimeoutMs: readXsyFetcherTimeoutMs(source),
+    meiliHost: readMeiliHost(source),
+    meiliApiKey: source.MEILI_API_KEY,
   };
 }
 
@@ -72,5 +79,11 @@ export const env = {
   },
   get xsyFetcherTimeoutMs() {
     return readXsyFetcherTimeoutMs(process.env);
+  },
+  get meiliHost() {
+    return readMeiliHost(process.env);
+  },
+  get meiliApiKey() {
+    return process.env.MEILI_API_KEY;
   },
 };

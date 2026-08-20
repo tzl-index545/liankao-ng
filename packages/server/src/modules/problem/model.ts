@@ -3,6 +3,7 @@ import { t } from 'elysia'
 export const problemListQuery = t.Object({
   page: t.Optional(t.Number({ minimum: 1, default: 1 })),
   pageSize: t.Optional(t.Number({ minimum: 1, maximum:100 ,default: 20 })),
+  q: t.Optional(t.String({ maxLength: 200 })),
   order: t.Optional(t.Union([
     t.Literal('asc'),
     t.Literal('desc'),

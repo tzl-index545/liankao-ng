@@ -28,11 +28,14 @@ export const problem = new Elysia({
   .prefix('model', 'problem')
   .get('/list', ({ query }) => ProblemService.list(query), {
     query: problemListQuery,
-    response: { 200: problemPaginatedResponse },
+    response: {
+      200: problemPaginatedResponse,
+      503: problemApiError,
+    },
     detail: {
       summary: '题目列表（分页）',
       description:
-        'page / pageSize 由服务端截断；可选 order: qualities-desc | qualities-asc | difficulties-desc | difficulties-asc，默认按 id 降序。',
+        'page / pageSize 由服务端截断；q 非空时使用 Meilisearch 全文检索并默认按相关性排序；可选 order: qualities-desc | qualities-asc | difficulties-desc | difficulties-asc。',
     },
   })
   .get('/:id', ({ params }) => ProblemService.getById(params.id), {

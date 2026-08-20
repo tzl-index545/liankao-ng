@@ -4,12 +4,21 @@
     <div class="header">
       <h1>题目列表</h1>
       <div class="sort-bar">
+        <el-input
+          v-model="searchInput"
+          class="search-input"
+          clearable
+          maxlength="200"
+          aria-label="搜索题库"
+          placeholder="搜索题号、题名、简介与题面"
+        />
         <el-select class="sort-select" v-model="sortField" @change="handleSortChange" placeholder="排序字段">
+          <el-option v-if="activeQuery" label="相关性" value="relevance" />
           <el-option label="ID" value="id" />
           <el-option label="难度" value="difficulties" />
           <el-option label="质量" value="qualities" />
         </el-select>
-        <el-select class="sort-select" v-model="sortDirection" @change="handleSortChange" placeholder="排序方向">
+        <el-select class="sort-select" v-model="sortDirection" :disabled="sortField === 'relevance'" @change="handleSortChange" placeholder="排序方向">
           <el-option label="Asc" value="asc" />
           <el-option label="Desc" value="desc" />
         </el-select>
@@ -66,43 +75,59 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { ElTable, ElTableColumn, ElSelect, ElOption, ElPagination, ElEmpty, ElButton, ElMessage } from 'element-plus'
+import { onBeforeUnmount, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElTable, ElTableColumn, ElSelect, ElOption, ElPagination, ElEmpty, ElButton, ElInput, ElMessage } from 'element-plus'
 import { getProblemList } from '../api/problem'
 import QualityScore from '../components/QualityScore.vue'
 import ProblemVoteDialog from '../components/ProblemVoteDialog.vue'
 
 const router = useRouter()
+const route = useRoute()
+const normalizeRouteQuery = (value) => {
+  const raw = Array.isArray(value) ? value[0] : value
+  return typeof raw === 'string' ? raw.trim() : ''
+}
+const initialQuery = normalizeRouteQuery(route.query.q)
 const loading = ref(false)
 const problems = ref([])
-const sortField = ref('id')
+const searchInput = ref(initialQuery)
+const activeQuery = ref(initialQuery)
+const sortField = ref(initialQuery ? 'relevance' : 'id')
 const sortDirection = ref('desc')
 const currentPage = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
 const voteDialogVisible = ref(false)
 const activeProblem = ref(null)
+let fetchSequence = 0
+let searchTimer = null
 
 const fetchProblems = async () => {
+  const sequence = ++fetchSequence
   loading.value = true
   try {
     const params = {
       page: currentPage.value,
-      pageSize: pageSize.value,
-      order: getProblemOrder()
+      pageSize: pageSize.value
     }
+    const order = getProblemOrder()
+    if (order) params.order = order
+    if (activeQuery.value) params.q = activeQuery.value
     const res = await getProblemList(params)
+    if (sequence !== fetchSequence) return
     problems.value = res.data.items
     total.value = res.data.total
   } catch (error) {
+    if (sequence !== fetchSequence) return
     ElMessage.error('获取题目列表失败')
   } finally {
-    loading.value = false
+    if (sequence === fetchSequence) loading.value = false
   }
 }
 
 const getProblemOrder = () => {
+  if (sortField.value === 'relevance') return undefined
   if (sortField.value === 'difficulties') {
     return sortDirection.value === 'asc' ? 'difficulties-asc' : 'difficulties-desc'
   }
@@ -140,8 +165,34 @@ const handleVoteSubmitted = () => {
   fetchProblems()
 }
 
-onMounted(() => {
+watch(searchInput, (value) => {
+  clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => {
+    const q = value.trim()
+    if (q === normalizeRouteQuery(route.query.q)) return
+    const query = { ...route.query }
+    if (q) query.q = q
+    else delete query.q
+    router.replace({ query })
+  }, 300)
+})
+
+watch(() => route.query.q, (value) => {
+  const q = normalizeRouteQuery(value)
+  const hadQuery = Boolean(activeQuery.value)
+  if (searchInput.value !== q) searchInput.value = q
+  activeQuery.value = q
+  if (q && !hadQuery) sortField.value = 'relevance'
+  if (!q && sortField.value === 'relevance') {
+    sortField.value = 'id'
+    sortDirection.value = 'desc'
+  }
+  currentPage.value = 1
   fetchProblems()
+}, { immediate: true })
+
+onBeforeUnmount(() => {
+  clearTimeout(searchTimer)
 })
 </script>
 
@@ -172,6 +223,11 @@ onMounted(() => {
 
 .sort-select {
   width: 128px;
+}
+
+.search-input {
+  width: min(420px, 100%);
+  margin-right: auto;
 }
 
 .problem-list {

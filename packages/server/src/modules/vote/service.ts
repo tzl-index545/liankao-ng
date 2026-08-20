@@ -1,6 +1,7 @@
 import { status } from 'elysia'
 import { prisma } from '../../prisma'
 import { calcRatingWeights } from '../../plugins/rating2weight'
+import { markProblemSearchDirty } from '../problem/search'
 
 type WeightedRow = {
   score: number
@@ -50,6 +51,7 @@ export abstract class VoteService {
       where: { id: problemId },
       data: { qualities: displayScore },
     })
+    markProblemSearchDirty()
 
     return status(200, { success: true as const })
   }

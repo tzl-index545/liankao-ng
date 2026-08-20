@@ -12,6 +12,7 @@ import {
   type ContestProblemRow,
 } from "./updateLeaderboard";
 import { buildXsyContestUrl, buildXsyProblemUrl } from "./xsyUrl";
+import { markProblemSearchDirty } from "../modules/problem/search";
 
 const STATEMENT_FETCH_CONCURRENCY = 4;
 
@@ -215,6 +216,7 @@ export async function persistContestBundle(
       });
     }
   });
+  markProblemSearchDirty();
 }
 
 export async function backfillMissingProblemStatements(
@@ -295,8 +297,10 @@ export async function backfillMissingProblemStatements(
     },
   );
 
+  const updated = results.filter(Boolean).length;
+  if (updated > 0) markProblemSearchDirty();
   return {
-    updated: results.filter(Boolean).length,
+    updated,
     failed: results.filter((success) => !success).length,
   };
 }

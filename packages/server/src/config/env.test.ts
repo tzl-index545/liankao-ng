@@ -13,6 +13,8 @@ describe("readServerEnv", () => {
         XSY_FETCHER_URL: "http://127.0.0.1:9000///",
         XSY_FETCHER_TOKEN: "fetcher-token",
         XSY_FETCHER_TIMEOUT_MS: "2500",
+        MEILI_HOST: "http://127.0.0.1:7701///",
+        MEILI_API_KEY: "meili-key",
       }),
     ).toEqual({
       jwtSecret: "secret",
@@ -23,6 +25,8 @@ describe("readServerEnv", () => {
       xsyFetcherUrl: "http://127.0.0.1:9000",
       xsyFetcherToken: "fetcher-token",
       xsyFetcherTimeoutMs: 2500,
+      meiliHost: "http://127.0.0.1:7701",
+      meiliApiKey: "meili-key",
     });
   });
 
@@ -39,6 +43,8 @@ describe("readServerEnv", () => {
       xsyFetcherUrl: undefined,
       xsyFetcherToken: undefined,
       xsyFetcherTimeoutMs: 10000,
+      meiliHost: "http://127.0.0.1:7700",
+      meiliApiKey: undefined,
     });
   });
 
