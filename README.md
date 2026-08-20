@@ -115,6 +115,7 @@ Wants=network-online.target
 Type=simple
 User=meilisearch
 Group=meilisearch
+WorkingDirectory=/var/lib/meilisearch
 EnvironmentFile=/etc/meilisearch.env
 ExecStart=/usr/local/bin/meilisearch
 Restart=on-failure
