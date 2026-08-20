@@ -7,6 +7,7 @@ import {
 } from './config'
 import { YuantijiModelClient } from './openai'
 import { readYuantijiPrompt } from './prompt'
+import { formatYuantijiProgress } from './progress'
 import { statementHtmlToYuantijiText } from './text'
 import { encodeEmbedding, normalizeEmbedding } from './vector'
 
@@ -41,12 +42,21 @@ export async function indexYuantijiProblems(force = false): Promise<YuantijiInde
     failed: 0,
   }
 
-  for (const problem of problems) {
+  for (const [problemIndex, problem] of problems.entries()) {
+    const current = problemIndex + 1
+    const log = (message: string) => console.log(
+      formatYuantijiProgress(current, problems.length, problem.id, message),
+    )
+    const logError = (message: string) => console.error(
+      formatYuantijiProgress(current, problems.length, problem.id, message),
+    )
+
     if (!problem.statementHtml?.trim()) {
       if (problem.yuantijiEmbedding) {
         await prisma.yuantijiEmbedding.delete({ where: { problemId: problem.id } })
       }
       stats.missingStatement += 1
+      log('缺少题面，跳过')
       continue
     }
 
@@ -56,6 +66,7 @@ export async function indexYuantijiProblems(force = false): Promise<YuantijiInde
         await prisma.yuantijiEmbedding.delete({ where: { problemId: problem.id } })
       }
       stats.missingStatement += 1
+      log('清洗后题面为空，跳过')
       continue
     }
 
@@ -70,17 +81,28 @@ export async function indexYuantijiProblems(force = false): Promise<YuantijiInde
       existing.embedding.byteLength === existing.dimensions * Float32Array.BYTES_PER_ELEMENT
     ) {
       stats.unchanged += 1
+      log('索引未变化，跳过')
       continue
     }
 
+    let phase = '简化题意'
     try {
       const canReuseSimplified = !force &&
         existing?.sourceHash === sourceHash &&
         existing.simplifierHash === currentSimplifierHash
-      const simplifiedStatement = canReuseSimplified
-        ? existing.simplifiedStatement
-        : await modelClient.simplify(statement, promptTemplate)
+      let simplifiedStatement: string
+      if (canReuseSimplified) {
+        simplifiedStatement = existing.simplifiedStatement
+        log('复用简化题意，开始生成 Embedding')
+      } else {
+        log('开始简化题意')
+        simplifiedStatement = await modelClient.simplify(statement, promptTemplate)
+        log('简化完成，开始生成 Embedding')
+      }
+      phase = '生成 Embedding'
       const embedding = normalizeEmbedding(await modelClient.embed(simplifiedStatement))
+      log('Embedding 完成，开始写入数据库')
+      phase = '写入数据库'
       await prisma.yuantijiEmbedding.upsert({
         where: { problemId: problem.id },
         create: {
@@ -106,11 +128,11 @@ export async function indexYuantijiProblems(force = false): Promise<YuantijiInde
         },
       })
       stats.indexed += 1
-      console.log(`[${problem.id}] Indexed ${problem.name}`)
+      log('Embedding 已写入数据库')
     } catch (error: unknown) {
       stats.failed += 1
       const message = error instanceof Error ? error.message : 'Unknown error'
-      console.error(`[${problem.id}] Failed ${problem.name}: ${message}`)
+      logError(`${phase}失败（${problem.name}）：${message}`)
     }
   }
 
