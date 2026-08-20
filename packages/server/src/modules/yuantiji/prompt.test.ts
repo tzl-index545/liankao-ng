@@ -1,12 +1,7 @@
 import { describe, expect, it } from 'bun:test'
-import { buildYuantijiPrompt, cleanSimplifiedStatement } from './prompt'
+import { cleanSimplifiedStatement } from './prompt'
 
 describe('yuantiji prompt helpers', () => {
-  it('injects the original statement into the prompt', () => {
-    expect(buildYuantijiPrompt('Before\n[[ORIGINAL]]\nAfter', '  A + B  '))
-      .toBe('Before\nA + B\nAfter')
-  })
-
   it('extracts and compacts the tagged simplified statement', () => {
     expect(cleanSimplifiedStatement(`
       <SIMPLIFIED_STATEMENT>

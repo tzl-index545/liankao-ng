@@ -18,8 +18,12 @@ describe('YuantijiModelClient', () => {
       const url = String(input)
       if (url === config.chatEndpoint) {
         expect(init?.headers).toMatchObject({ Authorization: 'Bearer chat-key' })
-        expect(JSON.parse(String(init?.body))).toMatchObject({
+        expect(JSON.parse(String(init?.body))).toEqual({
           model: 'chat-model',
+          messages: [
+            { role: 'system', content: 'Simplify the statement.' },
+            { role: 'user', content: 'A+B' },
+          ],
           thinking: { type: 'enabled' },
           reasoning_effort: 'low',
         })
@@ -37,7 +41,7 @@ describe('YuantijiModelClient', () => {
     })
     const client = new YuantijiModelClient(config, fetcher as typeof fetch)
 
-    const simplified = await client.simplify('A+B', 'Statement:\n[[ORIGINAL]]')
+    const simplified = await client.simplify('A+B', 'Simplify the statement.')
     expect(simplified).toBe('Add two integers.')
     expect(await client.embed(simplified)).toEqual([0.25, 0.75])
     expect(fetcher).toHaveBeenCalledTimes(2)

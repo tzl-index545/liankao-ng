@@ -24,6 +24,16 @@
       </div>
     </el-card>
 
+    <div v-if="loading" class="progress-box" role="status" aria-live="polite">
+      <div class="progress-copy">
+        <span>模型正在分析题面</span>
+        <strong>{{ progressElapsed < 10 ? `预计还需 ${10 - progressElapsed}s` : '即将完成' }}</strong>
+      </div>
+      <div class="progress-track" aria-hidden="true">
+        <span :style="{ transform: `scaleX(${progressPercentage})` }" />
+      </div>
+    </div>
+
     <template v-if="searched">
       <el-card v-if="simplifiedStatement" shadow="never" class="summary-card">
         <template #header>
@@ -72,7 +82,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { computed, onUnmounted, ref } from 'vue'
 import { ElButton, ElCard, ElEmpty, ElInput, ElMessage, ElTable, ElTableColumn, ElTag } from 'element-plus'
 import { searchYuantiji } from '../api/yuantiji'
 
@@ -82,6 +92,25 @@ const searched = ref(false)
 const simplifiedStatement = ref('')
 const indexedCount = ref(0)
 const matches = ref([])
+const progressElapsed = ref(0)
+const progressPercentage = computed(() => progressElapsed.value / 10)
+let progressStartedAt = 0
+let progressTimer
+
+const updateProgress = () => {
+  progressElapsed.value = Math.min(10, Math.floor((Date.now() - progressStartedAt) / 1000))
+}
+
+const startProgress = () => {
+  progressStartedAt = Date.now()
+  progressElapsed.value = 0
+  progressTimer = setInterval(updateProgress, 250)
+}
+
+const stopProgress = () => {
+  clearInterval(progressTimer)
+  progressTimer = undefined
+}
 
 const handleSearch = async () => {
   if (loading.value) return
@@ -91,6 +120,7 @@ const handleSearch = async () => {
     return
   }
   loading.value = true
+  startProgress()
   searched.value = false
   simplifiedStatement.value = ''
   indexedCount.value = 0
@@ -104,6 +134,7 @@ const handleSearch = async () => {
   } catch (error) {
     ElMessage.error(error.message || '原题匹配失败')
   } finally {
+    stopProgress()
     loading.value = false
   }
 }
@@ -116,6 +147,7 @@ const similarityType = (similarity) => {
   return 'info'
 }
 
+onUnmounted(stopProgress)
 </script>
 
 <style scoped>
@@ -144,6 +176,46 @@ const similarityType = (similarity) => {
 .summary-card,
 .result-card {
   margin-bottom: 20px;
+}
+
+.progress-box {
+  margin: -4px 0 20px;
+  padding: 12px 14px;
+  border: 1px solid #dcdfe6;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.progress-copy {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  color: #909399;
+  font-size: 13px;
+}
+
+.progress-copy strong {
+  color: var(--el-color-primary);
+  font-weight: 500;
+}
+
+.progress-track {
+  height: 3px;
+  margin-top: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #ebeef5;
+}
+
+.progress-track span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--el-color-primary);
+  transform-origin: left;
+  transition: transform 0.25s linear;
 }
 
 .search-actions,

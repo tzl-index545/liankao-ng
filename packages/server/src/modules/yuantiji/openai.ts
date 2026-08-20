@@ -1,5 +1,5 @@
 import type { YuantijiConfig } from './config'
-import { buildYuantijiPrompt, cleanSimplifiedStatement } from './prompt'
+import { cleanSimplifiedStatement } from './prompt'
 
 type ChatCompletionResponse = {
   choices?: Array<{
@@ -48,7 +48,10 @@ export class YuantijiModelClient {
       this.config.chatApiKey,
       {
         model: this.config.chatModel,
-        messages: [{ role: 'user', content: buildYuantijiPrompt(promptTemplate, statement) }],
+        messages: [
+          { role: 'system', content: promptTemplate },
+          { role: 'user', content: statement },
+        ],
         thinking: { type: 'enabled' },
         reasoning_effort: 'low',
       },
