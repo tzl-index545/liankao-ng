@@ -14,6 +14,7 @@ PRESERVE:
 REMOVE:
 
 * stories, characters, names, motivation, and flavor text;
+* input-size and data-range bounds used only to limit computational scale, such as $n\le 2\times10^5$ or $q\le 10^5$;
 * input/output format;
 * samples and sample explanations;
 * subtasks and scoring information;
