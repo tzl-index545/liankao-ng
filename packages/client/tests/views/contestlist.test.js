@@ -41,4 +41,19 @@ describe('ContestList view', () => {
     expect(sessionInput.attributes('autocomplete')).toBe('off')
     expect(wrapper.find('input[type="password"]').exists()).toBe(false)
   })
+
+  it('keeps the session token after crawling', async () => {
+    contestApi.crawlContest.mockResolvedValue({ success: true })
+    const wrapper = await mountContestList()
+    const contestInput = wrapper.get('input[name="contest-crawl-range"]')
+    const sessionInput = wrapper.get('input[name="xsy-session-token"]')
+
+    await contestInput.setValue('1001')
+    await sessionInput.setValue('test-session-id')
+    await wrapper.get('.contest-actions .el-button--primary').trigger('click')
+    await flushPromises()
+
+    expect(contestApi.crawlContest).toHaveBeenCalledWith(1001, 'test-session-id')
+    expect(sessionInput.element.value).toBe('test-session-id')
+  })
 })

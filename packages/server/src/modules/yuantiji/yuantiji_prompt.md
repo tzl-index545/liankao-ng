@@ -8,7 +8,7 @@ PRESERVE:
 
 * the objects and variables defining the problem;
 * the task to compute, find, count, construct, decide, or optimize;
-* conditions defining valid inputs, operations, solutions, or answers;
+* conditions defining operations, solutions, or answers;
 * guarantees necessary to understand the problem.
 
 REMOVE:
@@ -26,7 +26,7 @@ RULES:
 * Use MathJax `$...$` for mathematical notation. NEVER USE \(\) FOR IT!
 * Output in English only.
 * Preserve the original formulation of the core problem whenever possible.
-* Simplify wording, but do not replace a condition with a derived or mathematically equivalent characterization.
+* Simplify wording. You may replace an explicit definition by its standard mathematical term when this does not require solving or deriving a new property of the instance.
 * Do not solve the problem or infer additional properties.
 * Do not repeat the same information in different words.
 * Use standard mathematical terminology without explaining it.

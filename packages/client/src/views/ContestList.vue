@@ -322,7 +322,6 @@ const handleCrawlContest = async () => {
   } catch (error) {
     ElMessage.error(error?.message || '爬取比赛失败')
   } finally {
-    phpSessionId.value = ''
     crawlingContest.value = false
     crawlProgress.value = { attemptedCount: 0, totalCount: 0 }
   }

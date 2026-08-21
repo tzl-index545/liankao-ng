@@ -52,8 +52,8 @@ export class YuantijiModelClient {
           { role: 'system', content: promptTemplate },
           { role: 'user', content: statement },
         ],
-        thinking: { type: 'enabled' },
-        reasoning_effort: 'low',
+        thinking: { type: 'disabled' }
+        // reasoning_effort: 'low',
       },
     )
     const content = response.choices?.[0]?.message?.content
