@@ -84,7 +84,8 @@ const handleRegister = async () => {
         await new Promise(resolve => setTimeout(resolve, 100))
         router.push('/contests')
       } catch (error) {
-        ElMessage.error(error.message || '注册失败')
+        const reason = error.message || '注册失败'
+        ElMessage.error(`${reason}；提示：有正在进行的比赛时无法注册`)
       } finally {
         loading.value = false
       }
