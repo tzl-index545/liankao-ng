@@ -30,8 +30,18 @@ describe('Register view', () => {
     vi.clearAllMocks()
   })
 
-  it('mentions ongoing contests when registration fails', async () => {
-    registerAction.mockRejectedValue(new Error('Check your token!!!'))
+  it('explains the real-name restriction before submission', async () => {
+    const wrapper = await mountRegister()
+
+    expect(wrapper.text()).toContain('小视野有比赛正在进行时，无法获取真实姓名')
+    expect(wrapper.text()).toContain('请在比赛结束后注册')
+    expect(registerAction).not.toHaveBeenCalled()
+    wrapper.unmount()
+  })
+
+  it('shows the specific failure without appending an unrelated contest warning', async () => {
+    const reason = '评分站昵称须为 4–20 个字符，请检查后重试。'
+    registerAction.mockRejectedValue(new Error(reason))
     const messageSpy = vi.spyOn(ElMessage, 'error').mockImplementation(() => {})
     const wrapper = await mountRegister()
     const inputs = wrapper.findAll('input')
@@ -43,8 +53,8 @@ describe('Register view', () => {
     await flushPromises()
 
     expect(registerAction).toHaveBeenCalledTimes(1)
-    expect(messageSpy).toHaveBeenCalledWith(
-      'Check your token!!!；提示：有正在进行的比赛时无法注册'
-    )
+    expect(messageSpy).toHaveBeenCalledWith(reason)
+    wrapper.unmount()
+    messageSpy.mockRestore()
   })
 })

@@ -5,17 +5,18 @@
       <template #header>
         <div class="card-header">
           <h2>登录</h2>
+          <p class="form-hint">使用注册评分站时设置的昵称和密码登录。</p>
         </div>
       </template>
       <el-form :model="loginForm" :rules="rules" ref="loginFormRef" label-position="top">
-        <el-form-item label="用户名" prop="nickname">
-          <el-input v-model="loginForm.nickname" placeholder="请输入用户名" />
+        <el-form-item label="评分站昵称" prop="nickname">
+          <el-input v-model="loginForm.nickname" placeholder="请输入注册评分站时设置的昵称" />
         </el-form-item>
-        <el-form-item label="密码" prop="unHashedPassword">
+        <el-form-item label="评分站密码" prop="unHashedPassword">
           <el-input 
             v-model="loginForm.unHashedPassword" 
             type="password" 
-            placeholder="请输入密码"
+            placeholder="请输入评分站密码"
             show-password
           />
         </el-form-item>
@@ -52,10 +53,10 @@ const loginForm = reactive({
 
 const rules = {
   nickname: [
-    { required: true, message: '请输入用户名', trigger: 'blur' }
+    { required: true, message: '请输入注册评分站时设置的昵称', trigger: 'blur' }
   ],
   unHashedPassword: [
-    { required: true, message: '请输入密码', trigger: 'blur' }
+    { required: true, message: '请输入评分站密码', trigger: 'blur' }
   ]
 }
 
@@ -74,7 +75,7 @@ const handleLogin = async () => {
         console.log('Before router push, isLoggedIn:', userStore.isLoggedIn)
         router.push('/contests')
       } catch (error) {
-        ElMessage.error(error.message || '登录失败')
+        ElMessage.error(error.message || '登录暂时失败，请稍后重试')
       } finally {
         loading.value = false
       }
@@ -107,5 +108,12 @@ const goToRegister = () => {
 .card-header h2 {
   margin: 0;
   color: #303133;
+}
+
+.form-hint {
+  margin: 12px 0 0;
+  color: #606266;
+  font-size: 14px;
+  line-height: 1.6;
 }
 </style>

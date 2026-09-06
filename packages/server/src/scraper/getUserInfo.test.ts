@@ -23,7 +23,19 @@ describe("parseUserProfile", () => {
 
   it("rejects pages that do not contain a user profile", () => {
     expect(() => parseUserProfile("<p>Please Login first!</p>")).toThrow(
-      "Failed to get name",
+      "Failed to get username",
     );
+  });
+
+  it("distinguishes a missing real name from a missing account", () => {
+    const html = `
+      <div id="wrapper"><div class="form-container"><form>
+        <div></div><div></div><div></div>
+        <div><p>alice</p></div>
+        <div><p></p><p></p><p> </p></div>
+      </form></div></div>
+    `;
+
+    expect(() => parseUserProfile(html)).toThrow("Failed to get realname");
   });
 });

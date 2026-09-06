@@ -13,7 +13,8 @@ export function parseUserProfile(webInfo: string): XsyUserProfile {
     const $ = cheerio.load(webInfo);
     const xsyusername=$(usernameSelector).text().trim();
     const realname=$(nameSelector).text().trim();
-    if(xsyusername.length == 0 || realname.length == 0)    throw Error("Failed to get name");
+    if (!xsyusername) throw new Error("Failed to get username");
+    if (!realname) throw new Error("Failed to get realname");
     return { xsyusername, realname };
 }
 

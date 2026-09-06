@@ -5,6 +5,7 @@ import { AuthService } from './service'
 import { RegisterBody,LoginBody } from './model'
 import { openapi } from '@elysiajs/openapi'
 import { env } from '../../config/env'
+import { getAuthErrorMessage } from './errorMessage'
 
 const JWT_SECRET = env.jwtSecret
 
@@ -35,8 +36,8 @@ export const auth = new Elysia({ prefix: '/auth' })
             ...userPayload
           }
         }
-      } catch (error: any) {
-        return status(400, { success:false as const,message: "Check your token!!!"+(error.message || ' UKE') })
+      } catch (error) {
+        return status(400, { success: false as const, message: getAuthErrorMessage(error, 'register') })
       }
     },
     {
@@ -81,8 +82,8 @@ export const auth = new Elysia({ prefix: '/auth' })
             ...userPayload
           }
         }
-      } catch (error: any) {
-        return status(401, {success:false, message: "Check your password or nickname!!!"+(error.message || ' UKE') })
+      } catch (error) {
+        return status(401, { success: false, message: getAuthErrorMessage(error, 'login') })
       }
     },
     {

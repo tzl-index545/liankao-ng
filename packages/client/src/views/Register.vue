@@ -7,15 +7,24 @@
           <h2>注册</h2>
         </div>
       </template>
+      <el-alert
+        class="registration-notice"
+        title="注册前请留意比赛时间"
+        description="注册需要读取小视野账号的真实姓名。小视野有比赛正在进行时，无法获取真实姓名，请在比赛结束后注册。已有评分站账号可直接登录。"
+        type="warning"
+        :closable="false"
+        show-icon
+      />
       <el-form :model="registerForm" :rules="rules" ref="registerFormRef" label-position="top">
-        <el-form-item label="昵称" prop="nickname">
-          <el-input v-model="registerForm.nickname" placeholder="请输入昵称（不是小视野用户名）" />
+        <el-form-item label="评分站昵称" prop="nickname">
+          <el-input v-model="registerForm.nickname" placeholder="设置评分站登录昵称（4–20 个字符）" />
+          <p class="field-hint">昵称用于登录评分站，可自行设置；请勿包含空格或特殊符号。</p>
         </el-form-item>
-        <el-form-item label="密码" prop="unHashedPassword">
+        <el-form-item label="评分站密码" prop="unHashedPassword">
           <el-input 
             v-model="registerForm.unHashedPassword" 
             type="password" 
-            placeholder="请输入密码"
+            placeholder="设置评分站密码（至少 6 位）"
             show-password
           />
         </el-form-item>
@@ -23,8 +32,9 @@
           <el-input 
             v-model="registerForm.xsytoken" 
             type="text" 
-            placeholder="请输入小视野 cookie 中的 PHPSESSID 来验证你的身份。"
+            placeholder="仅粘贴 PHPSESSID 的值"
           />
+          <p class="field-hint">先登录小视野，再从浏览器 Cookie 中复制 PHPSESSID 的值，用于验证身份；无需包含 PHPSESSID= 或其他 Cookie。</p>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="handleRegister" :loading="loading" style="width: 100%">
@@ -44,7 +54,7 @@
 <script setup>
 import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElCard, ElForm, ElFormItem, ElInput, ElButton, ElMessage } from 'element-plus'
+import { ElAlert, ElCard, ElForm, ElFormItem, ElInput, ElButton, ElMessage } from 'element-plus'
 import { useUserStore } from '../store/user'
 
 const router = useRouter()
@@ -60,14 +70,14 @@ const registerForm = reactive({
 
 const rules = {
   nickname: [
-    { required: true, message: '请输入昵称', trigger: 'blur' }
+    { required: true, message: '请设置用于登录评分站的昵称', trigger: 'blur' }
   ],
   unHashedPassword: [
-    { required: true, message: '请输入密码', trigger: 'blur' },
-    { min: 6, message: '密码长度不能少于6位', trigger: 'blur' }
+    { required: true, message: '请设置评分站密码', trigger: 'blur' },
+    { min: 6, message: '评分站密码至少需要 6 位', trigger: 'blur' }
   ],
   xsytoken: [
-    { required: true, message: '请输入小视野Token', trigger: 'blur' }
+    { required: true, message: '请粘贴登录小视野后的 PHPSESSID 值', trigger: 'blur' }
   ]
 }
 
@@ -84,8 +94,7 @@ const handleRegister = async () => {
         await new Promise(resolve => setTimeout(resolve, 100))
         router.push('/contests')
       } catch (error) {
-        const reason = error.message || '注册失败'
-        ElMessage.error(`${reason}；提示：有正在进行的比赛时无法注册`)
+        ElMessage.error(error.message || '注册暂时失败，请稍后重试')
       } finally {
         loading.value = false
       }
@@ -118,5 +127,16 @@ const goToLogin = () => {
 .card-header h2 {
   margin: 0;
   color: #303133;
+}
+
+.registration-notice {
+  margin-bottom: 20px;
+}
+
+.field-hint {
+  margin: 6px 0 0;
+  color: #606266;
+  font-size: 12px;
+  line-height: 1.6;
 }
 </style>
