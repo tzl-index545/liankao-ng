@@ -32,7 +32,12 @@
       </div>
     </el-menu>
     <div class="main-content">
-      <router-view />
+      <div v-if="routeLoading" class="route-loading" role="status" aria-live="polite">
+        页面加载中…
+      </div>
+      <div v-show="!routeLoading">
+        <router-view />
+      </div>
     </div>
     <footer class="app-footer">
       <div class="footer-container">
@@ -68,6 +73,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMenu, ElMenuItem, ElButton } from 'element-plus'
 import { useUserStore } from './store/user'
 import UserName from './components/UserName.vue'
+import { routeLoading } from './router'
 
 const route = useRoute()
 const router = useRouter()
@@ -193,6 +199,12 @@ const handleLogout = () => {
 .main-content {
   padding: 24px;
   flex: 1;
+}
+
+.route-loading {
+  padding: 48px 0;
+  color: #606266;
+  text-align: center;
 }
 
 </style>

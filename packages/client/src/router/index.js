@@ -1,6 +1,7 @@
 
 import { createRouter, createWebHistory } from 'vue-router'
 import { useUserStore } from '../store/user'
+import { trackRouteLoading } from './loading'
 
 const routes = [
   {
@@ -67,6 +68,8 @@ const router = createRouter({
   history: createWebHistory(),
   routes
 })
+
+export const routeLoading = trackRouteLoading(router)
 
 // 路由守卫
 router.beforeEach((to, from, next) => {
