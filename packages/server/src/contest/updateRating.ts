@@ -15,25 +15,21 @@ type Contestant = {
   delta: number;
 };
 
-type RatedContestant = Contestant & {
-  newRating: number;
-};
-
 type ParticipationRatingUpdate = {
   participationId: number;
-  userId: number;
   preContestRating: number;
   newRating: number;
 };
 
-type ContestRatingInput = {
-  contestants: Contestant[];
-  ignoredContestants: ParticipationRatingUpdate[];
+type ParticipationInput = {
+  id: number;
+  userId: number;
+  totalScore: number;
+  rank: number;
 };
 
-type ContestRatingResult = {
-  contestId: number;
-  contestants: RatedContestant[];
+type ContestRatingInput = {
+  contestants: Contestant[];
   ignoredContestants: ParticipationRatingUpdate[];
 };
 
@@ -152,20 +148,10 @@ async function loadContests(): Promise<Array<{ id: number; endTime: Date; type: 
   });
 }
 
-async function loadContestantsFromDb(
-  contestId: number,
+function buildContestants(
+  rows: ParticipationInput[],
   ratings: Map<number, number>,
-): Promise<ContestRatingInput> {
-  const rows = await prisma.participation.findMany({
-    where: { contestId },
-    select: {
-      id: true,
-      userId: true,
-      totalScore: true,
-      rank: true,
-    },
-  });
-
+): ContestRatingInput {
   const ratedRows = rows.filter((row) => row.totalScore !== 0);
   const ignoredRows = rows.filter((row) => row.totalScore === 0);
 
@@ -182,7 +168,6 @@ async function loadContestantsFromDb(
 
   const ignoredContestants = ignoredRows.map((row) => ({
     participationId: row.id,
-    userId: row.userId,
     preContestRating: ratings.get(row.userId) ?? INITIAL_RATING,
     newRating: ratings.get(row.userId) ?? INITIAL_RATING,
   }));
@@ -191,21 +176,6 @@ async function loadContestantsFromDb(
     contestants,
     ignoredContestants,
   };
-}
-
-async function createBatch(
-  tx: Prisma.TransactionClient,
-  startContestId: number,
-  mode: string,
-): Promise<number> {
-  const batch = await tx.ratingCalculationBatch.create({
-    data: {
-      startContestId,
-      mode,
-    },
-    select: { id: true },
-  });
-  return batch.id;
 }
 
 function chunkArray<T>(items: T[], size: number): T[][] {
@@ -217,27 +187,22 @@ function chunkArray<T>(items: T[], size: number): T[][] {
 }
 
 function calculateContestResult(
-  contestId: number,
   input: ContestRatingInput,
   ratings: Map<number, number>,
-): ContestRatingResult {
-  const contestants = input.contestants;
-  processContestants(contestants);
-
-  const ratedContestants = contestants.map((contestant) => {
-    const newRating = contestant.rating + contestant.delta;
-    ratings.set(contestant.userId, newRating);
-    return {
-      ...contestant,
-      newRating,
-    };
-  });
-
-  return {
-    contestId,
-    contestants: ratedContestants,
-    ignoredContestants: input.ignoredContestants,
-  };
+): ParticipationRatingUpdate[] {
+  processContestants(input.contestants);
+  return [
+    ...input.contestants.map((contestant) => {
+      const newRating = contestant.rating + contestant.delta;
+      ratings.set(contestant.userId, newRating);
+      return {
+        participationId: contestant.participationId,
+        preContestRating: contestant.rating,
+        newRating,
+      };
+    }),
+    ...input.ignoredContestants,
+  ];
 }
 
 async function updateParticipations(
@@ -283,109 +248,90 @@ async function updateUsers(
   }
 }
 
-async function persistRatingResults(
-  tx: Prisma.TransactionClient,
-  batchId: number,
-  results: ContestRatingResult[],
-): Promise<void> {
-  const userChanges: Prisma.RatingUserChangeCreateManyInput[] = [];
-  const participationUpdates: ParticipationRatingUpdate[] = [];
-
-  for (const result of results) {
-    for (const c of result.contestants) {
-      userChanges.push({
-        batchId,
-        contestId: result.contestId,
-        userId: c.userId,
-        beforeRating: c.rating,
-        afterRating: c.newRating,
-      });
-
-      participationUpdates.push({
-        participationId: c.participationId,
-        userId: c.userId,
-        preContestRating: c.rating,
-        newRating: c.newRating,
-      });
-    }
-
-    for (const c of result.ignoredContestants) {
-      participationUpdates.push(c);
-    }
-  }
-
-  for (const chunk of chunkArray(userChanges, WRITE_CHUNK_SIZE)) {
-    if (chunk.length > 0) {
-      await tx.ratingUserChange.createMany({ data: chunk });
-    }
-  }
-
-  await updateParticipations(tx, participationUpdates);
-}
-
-async function clearRatingResults(
-  tx: Prisma.TransactionClient,
-  contestIds: number[],
-): Promise<void> {
-  if (contestIds.length === 0) return;
-
-  await tx.ratingUserChange.deleteMany({
-    where: { contestId: { in: contestIds } },
-  });
-
-  await tx.participation.updateMany({
-    where: { contestId: { in: contestIds } },
-    data: {
-      preContestRating: null,
-      postContestRating: null,
-    },
-  });
+// Restore the state immediately before the requested contest. Only the latest
+// settled participation per user leaves the database; no old contest is rerun.
+async function loadPreviousRatings(contestId: number): Promise<Map<number, number>> {
+  const rows = await prisma.$queryRaw<Array<{ userId: number; rating: number }>>`
+    WITH previous AS (
+      SELECT p."userId", p."postContestRating" AS rating,
+        ROW_NUMBER() OVER (
+          PARTITION BY p."userId" ORDER BY c."endTime" DESC, c."id" DESC
+        ) AS position
+      FROM "Participation" p
+      JOIN "Contest" c ON c."id" = p."contestId"
+      JOIN "Contest" start ON start."id" = ${contestId}
+      WHERE (c."endTime" < start."endTime"
+        OR (c."endTime" = start."endTime" AND c."id" < start."id"))
+        AND c."type" % 2 = 1
+        AND p."totalScore" != 0
+        AND p."postContestRating" IS NOT NULL
+    )
+    SELECT "userId", rating FROM previous WHERE position = 1
+  `;
+  return new Map(rows.map((row) => [row.userId, row.rating]));
 }
 
 async function recalculateRatingsFromContest(contestId: number): Promise<void> {
   const contests = await loadContests();
-  const startIndex = contests.findIndex((contest) => contest.id === contestId);
+  let startIndex = contests.findIndex((contest) => contest.id === contestId);
   if (startIndex === -1) {
     throw new Error(`Contest ${contestId} not found.`);
   }
 
-  const users = await prisma.user.findMany({ select: { id: true } });
-  const ratings = new Map<number, number>();
-  for (const user of users) ratings.set(user.id, INITIAL_RATING);
-
-  for (let i = 0; i < startIndex; i++) {
-    const contest = contests[i];
-    if (!isRatedContest(contest.type)) continue;
-
-    const input = await loadContestantsFromDb(contest.id, ratings);
-    if (input.contestants.length === 0) continue;
-    calculateContestResult(contest.id, input, ratings);
+  // A first calculation may be requested from the middle of history. Include
+  // earlier unsettled contests instead of treating missing results as 1500.
+  const previousRatedIds = contests.slice(0, startIndex)
+    .filter((contest) => isRatedContest(contest.type)).map((contest) => contest.id);
+  if (previousRatedIds.length > 0) {
+    const unsettled = await prisma.participation.findFirst({
+      where: {
+        contestId: { in: previousRatedIds },
+        totalScore: { not: 0 },
+        OR: [{ preContestRating: null }, { postContestRating: null }],
+      },
+      orderBy: [{ contest: { endTime: 'asc' } }, { contestId: 'asc' }],
+      select: { contestId: true },
+    });
+    if (unsettled) startIndex = contests.findIndex((contest) => contest.id === unsettled.contestId);
   }
 
-  const results: ContestRatingResult[] = [];
-  for (let i = startIndex; i < contests.length; i++) {
-    const contest = contests[i];
-    if (!isRatedContest(contest.type)) continue;
-
-    const input = await loadContestantsFromDb(contest.id, ratings);
-    if (input.contestants.length === 0 && input.ignoredContestants.length === 0) continue;
-
-    results.push(calculateContestResult(contest.id, input, ratings));
+  const affectedContests = contests.slice(startIndex);
+  const affectedContestIds = affectedContests.map((contest) => contest.id);
+  const ratedContestIds = affectedContests.filter((contest) => isRatedContest(contest.type))
+    .map((contest) => contest.id);
+  const [users, previousRatings, rows] = await Promise.all([
+    prisma.user.findMany({ select: { id: true, rating: true } }),
+    startIndex === 0 ? Promise.resolve(new Map<number, number>())
+      : loadPreviousRatings(contests[startIndex].id),
+    prisma.participation.findMany({
+      where: { contestId: { in: ratedContestIds } },
+      select: { id: true, contestId: true, userId: true, totalScore: true, rank: true },
+    }),
+  ]);
+  const ratings = new Map(users.map((user) => [user.id, previousRatings.get(user.id) ?? INITIAL_RATING]));
+  const rowsByContest = new Map<number, ParticipationInput[]>();
+  for (const row of rows) {
+    const group = rowsByContest.get(row.contestId) ?? [];
+    group.push(row);
+    rowsByContest.set(row.contestId, group);
   }
 
-  const affectedContestIds = contests.slice(startIndex).map((contest) => contest.id);
+  const results: ParticipationRatingUpdate[] = [];
+  for (const contestId of ratedContestIds) {
+    const input = buildContestants(rowsByContest.get(contestId) ?? [], ratings);
+    results.push(...calculateContestResult(input, ratings));
+  }
+  // Also restores users whose only rated participation has become unrated.
+  const changedRatings = new Map(users.filter((user) => ratings.get(user.id) !== user.rating)
+    .map((user) => [user.id, ratings.get(user.id)!]));
 
   await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
-    await clearRatingResults(tx, affectedContestIds);
-
-    const batchId = await createBatch(tx, contestId, 'RECALCULATE_FROM_CONTEST');
-    await persistRatingResults(tx, batchId, results);
-    await updateUsers(tx, ratings);
-
-    await tx.ratingCalculationBatch.update({
-      where: { id: batchId },
-      data: { completedAt: new Date() },
+    await tx.participation.updateMany({
+      where: { contestId: { in: affectedContestIds } },
+      data: { preContestRating: null, postContestRating: null },
     });
+    await updateParticipations(tx, results);
+    await updateUsers(tx, changedRatings);
   });
 }
 

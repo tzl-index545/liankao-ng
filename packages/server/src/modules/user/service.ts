@@ -96,26 +96,6 @@ export abstract class UserService {
     }
   }
 
-  static async getRatingChanges(userId: number) {
-    const ratingChanges = await prisma.ratingUserChange.findMany({
-      where: { userId },
-      orderBy: { contestId: 'desc' },
-      select: {
-        id: true,
-        batchId: true,
-        contestId: true,
-        userId: true,
-        beforeRating: true,
-        afterRating: true
-      }
-    })
-
-    return {
-      success: true as const,
-      data: ratingChanges
-    }
-  }
-
   static async getRatingHistory(userId: number) {
     const ratingHistory = await prisma.participation.findMany({
       where: { userId },

@@ -34,7 +34,6 @@ model User {
   participations             Participation[]
   votes                      Vote[]
   problemVotes               ProblemVote[]
-  ratingUserChanges          RatingUserChange[]
 }
 
 /// 题目信息
@@ -193,33 +192,4 @@ model ProblemVote {
   @@unique([userId, problemId])
   @@index([userId])
   @@index([problemId])
-}
-
-model RatingCalculationBatch {
-  id             Int       @id @default(autoincrement())
-  startContestId Int
-  mode           String
-  createdAt      DateTime  @default(now())
-  completedAt    DateTime?
-
-  userChanges RatingUserChange[]
-
-  @@index([createdAt])
-  @@index([completedAt])
-}
-
-model RatingUserChange {
-  id           Int @id @default(autoincrement())
-  batchId      Int
-  contestId    Int
-  userId       Int
-  beforeRating Int
-  afterRating  Int
-
-  batch RatingCalculationBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  user  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([batchId])
-  @@index([contestId])
-  @@index([userId])
 }

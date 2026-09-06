@@ -16,13 +16,6 @@ export const getUserDetail = (id) => {
   })
 }
 
-export const getUserRatingChanges = (id) => {
-  return request({
-    url: `/user/${id}/ratingUserChanges`,
-    method: 'get'
-  })
-}
-
 export const getUserRatingHistory = (id) => {
   return request({
     url: `/user/${id}/ratingHistory`,

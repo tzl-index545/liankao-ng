@@ -83,18 +83,4 @@ export const userRatingHistoryResponse = t.Object({
   data: t.Array(userRatingHistoryItem)
 })
 
-export const userRatingChangeItem = t.Object({
-  id: t.Number(),
-  batchId: t.Number(),
-  contestId: t.Number(),
-  userId: t.Number(),
-  beforeRating: t.Number(),
-  afterRating: t.Number()
-})
-
-export const userRatingChangesResponse = t.Object({
-  success: t.Literal(true),
-  data: t.Array(userRatingChangeItem)
-})
-
 export type UserListQuery = typeof userListQuery.static

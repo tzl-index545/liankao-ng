@@ -107,37 +107,12 @@ function createSchema(dbPath: string): void {
     CREATE INDEX "Participation_contestId_idx" ON "Participation"("contestId");
     CREATE INDEX "Participation_userId_idx" ON "Participation"("userId");
 
-    CREATE TABLE "RatingCalculationBatch" (
-      "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-      "startContestId" INTEGER NOT NULL,
-      "mode" TEXT NOT NULL,
-      "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      "completedAt" DATETIME
-    );
-
-    CREATE TABLE "RatingUserChange" (
-      "id" INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-      "batchId" INTEGER NOT NULL,
-      "contestId" INTEGER NOT NULL,
-      "userId" INTEGER NOT NULL,
-      "beforeRating" INTEGER NOT NULL,
-      "afterRating" INTEGER NOT NULL,
-      CONSTRAINT "RatingUserChange_batchId_fkey" FOREIGN KEY ("batchId") REFERENCES "RatingCalculationBatch" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
-      CONSTRAINT "RatingUserChange_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
-    );
-
-    CREATE INDEX "RatingUserChange_batchId_idx" ON "RatingUserChange"("batchId");
-    CREATE INDEX "RatingUserChange_contestId_idx" ON "RatingUserChange"("contestId");
-    CREATE INDEX "RatingUserChange_userId_idx" ON "RatingUserChange"("userId");
-
   `);
 
   db.close();
 }
 
 async function resetData(): Promise<void> {
-  await prisma.ratingUserChange.deleteMany();
-  await prisma.ratingCalculationBatch.deleteMany();
   await prisma.participation.deleteMany();
   await prisma.contestProblem.deleteMany();
   await prisma.problem.deleteMany();
@@ -186,8 +161,6 @@ async function resetData(): Promise<void> {
 }
 
 async function resetLeaderboardData(): Promise<void> {
-  await prisma.ratingUserChange.deleteMany();
-  await prisma.ratingCalculationBatch.deleteMany();
   await prisma.participation.deleteMany();
   await prisma.contestProblem.deleteMany();
   await prisma.problem.deleteMany();
@@ -221,19 +194,19 @@ async function loadUserRatingSnapshot(userIds: number[]): Promise<Array<{ id: nu
   });
 }
 
-async function loadUserChangeSnapshot(userIds: number[]): Promise<Array<{
+async function loadParticipationRatingSnapshot(userIds: number[]): Promise<Array<{
   contestId: number;
   userId: number;
-  beforeRating: number;
-  afterRating: number;
+  preContestRating: number | null;
+  postContestRating: number | null;
 }>> {
-  return prisma.ratingUserChange.findMany({
+  return prisma.participation.findMany({
     where: { userId: { in: userIds } },
     select: {
       contestId: true,
       userId: true,
-      beforeRating: true,
-      afterRating: true,
+      preContestRating: true,
+      postContestRating: true,
     },
     orderBy: [{ contestId: 'asc' }, { userId: 'asc' }],
   });
@@ -301,13 +274,6 @@ describe('recalculateRatingsFromContest', () => {
   it('persists rating changes and keeps tied ranks as competition ranks', async () => {
     await recalculateRatingsFromContest(101);
 
-    const batch = await prisma.ratingCalculationBatch.findFirstOrThrow();
-    expect(batch.startContestId).toBe(101);
-    expect(batch.mode).toBe('RECALCULATE_FROM_CONTEST');
-    expect(batch.completedAt).toBeInstanceOf(Date);
-
-    expect(await prisma.ratingUserChange.count()).toBe(6);
-
     const firstContestRanks = await prisma.participation.findMany({
       where: { contestId: 101 },
       select: { userId: true, rank: true, preContestRating: true, postContestRating: true },
@@ -328,11 +294,12 @@ describe('recalculateRatingsFromContest', () => {
     });
 
     for (const user of users) {
-      const latestChange = await prisma.ratingUserChange.findFirstOrThrow({
+      const latestParticipation = await prisma.participation.findFirstOrThrow({
         where: { userId: user.id },
         orderBy: [{ contestId: 'desc' }, { id: 'desc' }],
+        select: { postContestRating: true },
       });
-      expect(user.rating).toBe(latestChange.afterRating);
+      expect(user.rating).toBe(latestParticipation.postContestRating);
     }
   });
 
@@ -363,8 +330,6 @@ describe('recalculateRatingsFromContest', () => {
       { userId: 3, rank: 99, preContestRating: null, postContestRating: null },
     ]);
 
-    expect(await prisma.ratingUserChange.count({ where: { contestId: 101 } })).toBe(0);
-
     const ratedContestRows = await prisma.participation.findMany({
       where: { contestId: 102 },
       select: { userId: true, preContestRating: true, postContestRating: true },
@@ -373,7 +338,6 @@ describe('recalculateRatingsFromContest', () => {
     expect(ratedContestRows.every((row) => row.preContestRating === 1500)).toBe(true);
     expect(ratedContestRows.every((row) => row.postContestRating !== null)).toBe(true);
 
-    expect(await prisma.ratingUserChange.count()).toBe(3);
   });
 
   it('resets users who only had rating from a contest that becomes unrated', async () => {
@@ -417,13 +381,12 @@ describe('recalculateRatingsFromContest', () => {
       select: { preContestRating: true, postContestRating: true },
     });
     expect(resetParticipation).toEqual({ preContestRating: null, postContestRating: null });
-    expect(await prisma.ratingUserChange.count({ where: { contestId: 101 } })).toBe(0);
   });
 
   it('ignores zero-score users while writing their carried rating back to the user table', async () => {
     await recalculateRatingsFromContest(101);
     const baselineRatings = await loadUserRatingSnapshot([1, 2, 3]);
-    const baselineChanges = await loadUserChangeSnapshot([1, 2, 3]);
+    const baselineChanges = await loadParticipationRatingSnapshot([1, 2, 3]);
 
     await resetData();
     // Stale user rating verifies zero-score rows are corrected without rating changes.
@@ -446,10 +409,7 @@ describe('recalculateRatingsFromContest', () => {
     await recalculateRatingsFromContest(101);
 
     expect(await loadUserRatingSnapshot([1, 2, 3])).toEqual(baselineRatings);
-    expect(await loadUserChangeSnapshot([1, 2, 3])).toEqual(baselineChanges);
-    expect(await prisma.ratingUserChange.count()).toBe(6);
-    expect(await prisma.ratingUserChange.count({ where: { userId: 4 } })).toBe(0);
-
+    expect(await loadParticipationRatingSnapshot([1, 2, 3])).toEqual(baselineChanges);
     const zeroScoreUser = await prisma.user.findUniqueOrThrow({
       where: { id: 4 },
       select: { rating: true },
@@ -462,6 +422,82 @@ describe('recalculateRatingsFromContest', () => {
     });
     expect(zeroScoreParticipation).toEqual({ rank: 4, preContestRating: 1500, postContestRating: 1500 });
 
+  });
+
+  it('matches a full rebuild while reading contestants only from the suffix', async () => {
+    await recalculateRatingsFromContest(101);
+    await prisma.participation.update({ where: { id: 4 }, data: { totalScore: 70, rank: 3 } });
+    await prisma.participation.updateMany({ where: { id: { in: [5, 6] } }, data: { rank: 1 } });
+    await recalculateRatingsFromContest(101);
+    const expectedRatings = await loadUserRatingSnapshot([1, 2, 3]);
+    const expectedHistory = await loadParticipationRatingSnapshot([1, 2, 3]);
+    await prisma.user.updateMany({ data: { rating: 999 } });
+    await prisma.participation.updateMany({
+      where: { contestId: 102 }, data: { preContestRating: null, postContestRating: null },
+    });
+
+    const originalFindMany = prisma.participation.findMany.bind(prisma.participation);
+    const loadedContests: number[] = [];
+    (prisma as any).participation.findMany = async (args: any) => {
+      const rows = await originalFindMany(args);
+      loadedContests.push(...rows.map((row: any) => row.contestId));
+      return rows;
+    };
+    try {
+      await recalculateRatingsFromContest(102);
+    } finally {
+      (prisma as any).participation.findMany = originalFindMany;
+    }
+    expect(loadedContests).toEqual([102, 102, 102]);
+    expect(await loadUserRatingSnapshot([1, 2, 3])).toEqual(expectedRatings);
+    expect(await loadParticipationRatingSnapshot([1, 2, 3])).toEqual(expectedHistory);
+  });
+
+  it('includes earlier unsettled contests on the first calculation', async () => {
+    await recalculateRatingsFromContest(101);
+    const expected = await loadParticipationRatingSnapshot([1, 2, 3]);
+    await resetData();
+    await recalculateRatingsFromContest(102);
+    expect(await loadParticipationRatingSnapshot([1, 2, 3])).toEqual(expected);
+  });
+
+  it.each([false, true])('restores each user by chronological order, with equal end times: %s', async (sameTime) => {
+    // ID 50 is chronologically between 101 and 102; user 3 does not attend it.
+    await prisma.contest.create({
+      data: {
+        id: 50, name: 'Middle contest', description: '', type: 1,
+        startTime: new Date('2026-01-01T03:00:00Z'),
+        endTime: new Date(sameTime ? '2026-01-02T02:00:00Z' : '2026-01-01T04:00:00Z'),
+      },
+    });
+    await prisma.participation.createMany({
+      data: [
+        { userId: 1, contestId: 50, totalScore: 100, rank: 1, scores: {} },
+        { userId: 2, contestId: 50, totalScore: 50, rank: 2, scores: {} },
+      ],
+    });
+    await recalculateRatingsFromContest(101);
+    const expectedRatings = await loadUserRatingSnapshot([1, 2, 3]);
+    const expectedHistory = await loadParticipationRatingSnapshot([1, 2, 3]);
+    await recalculateRatingsFromContest(102);
+    expect(await loadUserRatingSnapshot([1, 2, 3])).toEqual(expectedRatings);
+    expect(await loadParticipationRatingSnapshot([1, 2, 3])).toEqual(expectedHistory);
+  });
+
+  it('restores the previous rating when the entire suffix becomes unrated', async () => {
+    await recalculateRatingsFromContest(101);
+    const previous = await prisma.participation.findMany({
+      where: { contestId: 101 }, orderBy: { userId: 'asc' },
+      select: { userId: true, postContestRating: true },
+    });
+    await prisma.contest.update({ where: { id: 102 }, data: { type: 0 } });
+    await recalculateRatingsFromContest(102);
+    expect(await loadUserRatingSnapshot([1, 2, 3])).toEqual(
+      previous.map((row) => ({ id: row.userId, rating: row.postContestRating })),
+    );
+    expect(await prisma.participation.count({
+      where: { contestId: 102, OR: [{ preContestRating: { not: null } }, { postContestRating: { not: null } }] },
+    })).toBe(0);
   });
 
   it('writes ranks while parsing an anonymized cid 2263 leaderboard shape', async () => {
