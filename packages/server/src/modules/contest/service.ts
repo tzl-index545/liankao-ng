@@ -3,6 +3,7 @@ import { Prisma } from '../../generated/prisma/client'
 import { prisma } from '../../prisma'
 import { buildPageMeta, parsePagination } from '../../lib/pagination'
 import type { ContestListQuery } from './model'
+import { INITIAL_RATING, isRatedContest, loadPreviousRatings } from '../../contest/ratingState'
 
 function contestOrderBy(order: string | undefined): Prisma.ContestOrderByWithRelationInput[] {
   if (order === 'qualities-desc') return [{ qualities: 'desc' }, { id: 'desc' }]
@@ -107,6 +108,7 @@ export abstract class ContestService {
       where: { id },
       select: {
         id: true,
+        type: true,
         participants: {
           select: {
             id: true,
@@ -139,10 +141,17 @@ export abstract class ContestService {
       return status(404, { success: false as const, message: 'Contest not found' })
     }
 
+    const previousRatings = isRatedContest(contest.type) ? null
+      : await loadPreviousRatings(id, contest.participants.map((item) => item.userId))
+
     return {
       success: true as const,
       data: contest.participants.map((item) => ({
         ...item,
+        ...(previousRatings ? {
+          preContestRating: previousRatings.get(item.userId) ?? INITIAL_RATING,
+          postContestRating: previousRatings.get(item.userId) ?? INITIAL_RATING,
+        } : {}),
         scores: normalizeScores(item.scores),
       })),
     }

@@ -1,9 +1,11 @@
 import { beforeAll, beforeEach, describe, expect, it, mock } from 'bun:test';
 
 const contestFindUnique = mock();
+const queryRaw = mock();
 
 mock.module('../../prisma', () => ({
   prisma: {
+    $queryRaw: queryRaw,
     contest: {
       findUnique: contestFindUnique,
     },
@@ -19,11 +21,13 @@ describe('ContestService', () => {
 
   beforeEach(() => {
     contestFindUnique.mockReset();
+    queryRaw.mockReset();
   });
 
   it('returns pre contest ratings stored on participations', async () => {
     contestFindUnique.mockResolvedValue({
       id: 2429,
+      type: 1,
       participants: [
         {
           id: 1,
@@ -66,6 +70,7 @@ describe('ContestService', () => {
       where: { id: 2429 },
       select: {
         id: true,
+        type: true,
         participants: {
           select: {
             id: true,
@@ -94,6 +99,7 @@ describe('ContestService', () => {
       },
     });
     if ('code' in result) throw new Error('expected a successful ranklist response');
+    expect(queryRaw).not.toHaveBeenCalled();
     expect(result.success).toBe(true);
     expect(result.data.map((row) => ({
       userId: row.userId,
@@ -103,6 +109,35 @@ describe('ContestService', () => {
       { userId: 1, preContestRating: 1514, postContestRating: 1525 },
       { userId: 2, preContestRating: 1501, postContestRating: 1490 },
     ]);
+  });
+
+  it('keeps unsettled rated results null instead of inventing a zero change', async () => {
+    contestFindUnique.mockResolvedValue({
+      id: 2429, type: 1,
+      participants: [{ userId: 1, preContestRating: null, postContestRating: null, scores: {} }],
+    });
+    const result = await ContestService.getRanklist(2429);
+    if ('code' in result) throw new Error('expected a successful response');
+    expect(result.data[0].preContestRating).toBeNull();
+    expect(result.data[0].postContestRating).toBeNull();
+    expect(queryRaw).not.toHaveBeenCalled();
+  });
+
+  it('returns historical ratings for unrated participants in one query', async () => {
+    contestFindUnique.mockResolvedValue({
+      id: 2429, type: 2,
+      participants: [
+        { userId: 1, preContestRating: 999, postContestRating: 888, scores: {} },
+        { userId: 2, preContestRating: null, postContestRating: null, scores: {} },
+      ],
+    });
+    queryRaw.mockResolvedValue([{ userId: 1, rating: 1620 }]);
+    const result = await ContestService.getRanklist(2429);
+    if ('code' in result) throw new Error('expected a successful response');
+    expect(result.data.map((row) => [row.preContestRating, row.postContestRating])).toEqual([
+      [1620, 1620], [1500, 1500],
+    ]);
+    expect(queryRaw).toHaveBeenCalledTimes(1);
   });
 
   it('returns problem qualities for contest problem lists', async () => {

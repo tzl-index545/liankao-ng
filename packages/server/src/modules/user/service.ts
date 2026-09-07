@@ -2,6 +2,7 @@
 import { status } from 'elysia'
 import { Prisma } from '../../generated/prisma/client'
 import { prisma } from '../../prisma'
+import { isRatedContest } from '../../contest/ratingState'
 import type { UserListQuery } from './model'
 
 function userOrderBy(order: string | undefined): Prisma.UserOrderByWithRelationInput[] {
@@ -9,10 +10,6 @@ function userOrderBy(order: string | undefined): Prisma.UserOrderByWithRelationI
   if (order === 'rating-asc') return [{ rating: 'asc' }, { id: 'asc' }]
   if (order === 'asc') return [{ id: 'asc' }]
   return [{ id: 'desc' }]
-}
-
-function isRatedContestType(type: number): boolean {
-  return type % 2 === 1
 }
 
 export abstract class UserService {
@@ -76,7 +73,10 @@ export abstract class UserService {
   static async getParticipations(userId: number) {
     const participations = await prisma.participation.findMany({
       where: { userId },
-      orderBy: { contestId: 'desc' },
+      orderBy: [
+        { contest: { endTime: 'desc' } },
+        { contestId: 'desc' }
+      ],
       select: {
         id: true,
         userId: true,
@@ -87,21 +87,19 @@ export abstract class UserService {
       }
     })
 
-    return {
-      success: true as const,
-      data: participations.map((item) => ({
-        ...item,
-        postContestRating: item.postContestRating ?? 0
-      }))
-    }
+    return { success: true as const, data: participations }
   }
 
   static async getRatingHistory(userId: number) {
     const ratingHistory = await prisma.participation.findMany({
-      where: { userId },
+      where: {
+        userId,
+        preContestRating: { not: null },
+        postContestRating: { not: null }
+      },
       orderBy: [
+        { contest: { endTime: 'asc' } },
         { contestId: 'asc' },
-        { id: 'asc' }
       ],
       select: {
         id: true,
@@ -121,7 +119,7 @@ export abstract class UserService {
     return {
       success: true as const,
       data: ratingHistory
-        .filter((item) => isRatedContestType(item.contest.type))
+        .filter((item) => isRatedContest(item.contest.type))
         .map(({ contest, ...item }) => item)
     }
   }

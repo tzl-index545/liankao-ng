@@ -500,6 +500,46 @@ describe('recalculateRatingsFromContest', () => {
     })).toBe(0);
   });
 
+  it('reads unrated history without storing snapshots or using future ratings', async () => {
+    const { ContestService } = await import('../modules/contest/service');
+    await prisma.user.create({
+      data: { id: 4, xsyusername: 'new', nickname: 'new', realname: 'New', rating: 2200 },
+    });
+    // Same end time as 101: ID breaks the tie, regardless of start time.
+    await prisma.contest.create({
+      data: {
+        id: 500, name: 'Unrated', description: '', type: 0,
+        startTime: new Date('2026-01-01T00:00:00Z'),
+        endTime: new Date('2026-01-01T02:00:00Z'),
+      },
+    });
+    await prisma.participation.createMany({
+      data: [1, 4].map((userId) => ({ userId, contestId: 500, totalScore: 100, rank: 1, scores: {} })),
+    });
+    await recalculateRatingsFromContest(101);
+    const prior = await prisma.participation.findUniqueOrThrow({ where: { id: 1 } });
+    const result = await ContestService.getRanklist(500);
+    if ('code' in result) throw new Error('expected a successful response');
+    expect(result.data.map((row) => [row.userId, row.preContestRating, row.postContestRating])).toEqual([
+      [1, prior.postContestRating, prior.postContestRating], [4, 1500, 1500],
+    ]);
+    const future = await prisma.participation.findUniqueOrThrow({ where: { id: 5 } });
+    expect(prior.postContestRating).not.toBe(future.postContestRating);
+    expect(await prisma.participation.count({
+      where: { contestId: 500, preContestRating: null, postContestRating: null },
+    })).toBe(2);
+
+    // Correcting an earlier result changes the query response without rewriting unrated rows.
+    await prisma.participation.update({ where: { id: 1 }, data: { totalScore: 25, rank: 3 } });
+    await prisma.participation.update({ where: { id: 3 }, data: { rank: 2 } });
+    await recalculateRatingsFromContest(101);
+    const corrected = await ContestService.getRanklist(500);
+    if ('code' in corrected) throw new Error('expected a successful response');
+    const correctedPrior = await prisma.participation.findUniqueOrThrow({ where: { id: 1 } });
+    expect(corrected.data[0].preContestRating).toBe(correctedPrior.postContestRating);
+    expect(corrected.data[0].preContestRating).not.toBe(prior.postContestRating);
+  });
+
   it('writes ranks while parsing an anonymized cid 2263 leaderboard shape', async () => {
     await resetLeaderboardData();
 

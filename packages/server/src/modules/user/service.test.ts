@@ -55,10 +55,14 @@ describe('UserService', () => {
     const result = await UserService.getRatingHistory(7)
 
     expect(participationFindMany).toHaveBeenCalledWith({
-      where: { userId: 7 },
+      where: {
+        userId: 7,
+        preContestRating: { not: null },
+        postContestRating: { not: null }
+      },
       orderBy: [
+        { contest: { endTime: 'asc' } },
         { contestId: 'asc' },
-        { id: 'asc' }
       ],
       select: {
         id: true,
@@ -92,6 +96,50 @@ describe('UserService', () => {
           rank: 3,
           preContestRating: 1512,
           postContestRating: 1504
+        }
+      ]
+    })
+  })
+
+  it('keeps nullable participation ratings and orders participations by contest end time', async () => {
+    participationFindMany.mockResolvedValue([
+      {
+        id: 2,
+        userId: 7,
+        contestId: 1002,
+        totalScore: 0,
+        rank: 2,
+        postContestRating: null
+      }
+    ])
+
+    const result = await UserService.getParticipations(7)
+
+    expect(participationFindMany).toHaveBeenCalledWith({
+      where: { userId: 7 },
+      orderBy: [
+        { contest: { endTime: 'desc' } },
+        { contestId: 'desc' }
+      ],
+      select: {
+        id: true,
+        userId: true,
+        contestId: true,
+        totalScore: true,
+        rank: true,
+        postContestRating: true
+      }
+    })
+    expect(result).toEqual({
+      success: true,
+      data: [
+        {
+          id: 2,
+          userId: 7,
+          contestId: 1002,
+          totalScore: 0,
+          rank: 2,
+          postContestRating: null
         }
       ]
     })

@@ -1,7 +1,7 @@
 import { Prisma } from '../generated/prisma/client';
 import { prisma } from '../prisma';
 
-const INITIAL_RATING = 1500;
+import { INITIAL_RATING, isRatedContest, loadPreviousRatings } from './ratingState';
 const WRITE_CHUNK_SIZE = 100;
 
 type Contestant = {
@@ -35,10 +35,6 @@ type ContestRatingInput = {
 
 function eloWinProbability(ra: number, rb: number): number {
   return 1.0 / (1 + Math.pow(10, (rb - ra) / 400.0));
-}
-
-function isRatedContest(type: number): boolean {
-  return type % 2 === 1;
 }
 
 function sortByPointsDesc(contestants: Contestant[]): void {
@@ -246,29 +242,6 @@ async function updateUsers(
       WHERE "id" IN (${Prisma.join(chunk.map((entry) => entry.userId))})
     `;
   }
-}
-
-// Restore the state immediately before the requested contest. Only the latest
-// settled participation per user leaves the database; no old contest is rerun.
-async function loadPreviousRatings(contestId: number): Promise<Map<number, number>> {
-  const rows = await prisma.$queryRaw<Array<{ userId: number; rating: number }>>`
-    WITH previous AS (
-      SELECT p."userId", p."postContestRating" AS rating,
-        ROW_NUMBER() OVER (
-          PARTITION BY p."userId" ORDER BY c."endTime" DESC, c."id" DESC
-        ) AS position
-      FROM "Participation" p
-      JOIN "Contest" c ON c."id" = p."contestId"
-      JOIN "Contest" start ON start."id" = ${contestId}
-      WHERE (c."endTime" < start."endTime"
-        OR (c."endTime" = start."endTime" AND c."id" < start."id"))
-        AND c."type" % 2 = 1
-        AND p."totalScore" != 0
-        AND p."postContestRating" IS NOT NULL
-    )
-    SELECT "userId", rating FROM previous WHERE position = 1
-  `;
-  return new Map(rows.map((row) => [row.userId, row.rating]));
 }
 
 async function recalculateRatingsFromContest(contestId: number): Promise<void> {

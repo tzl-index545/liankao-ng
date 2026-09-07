@@ -155,6 +155,7 @@ const chartInnerWidth = CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right
 const chartInnerHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom
 
 const toNumber = (value) => {
+  if (value === null || value === undefined || value === '') return null
   const number = Number(value)
   return Number.isFinite(number) ? number : null
 }
@@ -168,7 +169,6 @@ const sortedRatingHistory = computed(() => {
       afterRating: toNumber(item.postContestRating)
     }))
     .filter((item) => item.contestId !== null && item.afterRating !== null)
-    .sort((a, b) => a.contestId - b.contestId || String(a.id).localeCompare(String(b.id)))
 })
 
 const yDomain = computed(() => {
