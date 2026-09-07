@@ -52,8 +52,7 @@ export class YuantijiModelClient {
           { role: 'system', content: promptTemplate },
           { role: 'user', content: statement },
         ],
-        thinking: { type: 'disabled' }
-        // reasoning_effort: 'low',
+        reasoning_effort: this.config.chatReasoningEffort,
       },
     )
     const content = response.choices?.[0]?.message?.content

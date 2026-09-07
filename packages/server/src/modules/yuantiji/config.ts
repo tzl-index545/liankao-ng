@@ -5,6 +5,7 @@ export type YuantijiConfig = {
   chatEndpoint: string
   chatApiKey: string
   chatModel: string
+  chatReasoningEffort?: string
   embeddingEndpoint: string
   embeddingApiKey: string
   embeddingModel: string
@@ -30,6 +31,7 @@ export function getYuantijiConfig(): YuantijiConfig {
     chatEndpoint: requireHttpEndpoint(env.yuantijiChatEndpoint, 'YUANTIJI_CHAT_ENDPOINT'),
     chatApiKey: requireConfig(env.yuantijiChatApiKey, 'YUANTIJI_CHAT_API_KEY'),
     chatModel: requireConfig(env.yuantijiChatModel, 'YUANTIJI_CHAT_MODEL'),
+    chatReasoningEffort: env.yuantijiChatReasoningEffort,
     embeddingEndpoint: requireHttpEndpoint(
       env.yuantijiEmbeddingEndpoint,
       'YUANTIJI_EMBEDDING_ENDPOINT',

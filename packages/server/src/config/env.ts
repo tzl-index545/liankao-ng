@@ -80,6 +80,7 @@ export function readServerEnv(source: EnvSource = process.env) {
     yuantijiChatEndpoint: readOptional(source.YUANTIJI_CHAT_ENDPOINT),
     yuantijiChatApiKey: readOptional(source.YUANTIJI_CHAT_API_KEY),
     yuantijiChatModel: readOptional(source.YUANTIJI_CHAT_MODEL),
+    yuantijiChatReasoningEffort: readOptional(source.YUANTIJI_CHAT_REASONING_EFFORT),
     yuantijiEmbeddingEndpoint: readOptional(source.YUANTIJI_EMBEDDING_ENDPOINT),
     yuantijiEmbeddingApiKey: readOptional(source.YUANTIJI_EMBEDDING_API_KEY),
     yuantijiEmbeddingModel: readOptional(source.YUANTIJI_EMBEDDING_MODEL),
@@ -127,6 +128,9 @@ export const env = {
   },
   get yuantijiChatModel() {
     return readOptional(process.env.YUANTIJI_CHAT_MODEL);
+  },
+  get yuantijiChatReasoningEffort() {
+    return readOptional(process.env.YUANTIJI_CHAT_REASONING_EFFORT);
   },
   get yuantijiEmbeddingEndpoint() {
     return readOptional(process.env.YUANTIJI_EMBEDDING_ENDPOINT);

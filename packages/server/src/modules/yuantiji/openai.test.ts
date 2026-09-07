@@ -6,6 +6,7 @@ const config: YuantijiConfig = {
   chatEndpoint: 'https://chat.example/v1/chat/completions',
   chatApiKey: 'chat-key',
   chatModel: 'chat-model',
+  chatReasoningEffort: 'high',
   embeddingEndpoint: 'https://embedding.example/v1/embeddings',
   embeddingApiKey: 'embedding-key',
   embeddingModel: 'embedding-model',
@@ -24,8 +25,7 @@ describe('YuantijiModelClient', () => {
             { role: 'system', content: 'Simplify the statement.' },
             { role: 'user', content: 'A+B' },
           ],
-          thinking: { type: 'enabled' },
-          reasoning_effort: 'low',
+          reasoning_effort: 'high',
         })
         return Response.json({
           choices: [{ message: { content: '<SIMPLIFIED_STATEMENT>Add two integers.</SIMPLIFIED_STATEMENT>' } }],
@@ -45,5 +45,23 @@ describe('YuantijiModelClient', () => {
     expect(simplified).toBe('Add two integers.')
     expect(await client.embed(simplified)).toEqual([0.25, 0.75])
     expect(fetcher).toHaveBeenCalledTimes(2)
+  })
+
+  it('omits reasoning effort when it is not configured', async () => {
+    const fetcher = mock(async (_input: string | URL | Request, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body))
+      expect(body).not.toHaveProperty('reasoning_effort')
+      expect(body).not.toHaveProperty('thinking')
+      return Response.json({
+        choices: [{ message: { content: '<SIMPLIFIED_STATEMENT>Add two integers.</SIMPLIFIED_STATEMENT>' } }],
+      })
+    })
+    const client = new YuantijiModelClient(
+      { ...config, chatReasoningEffort: undefined },
+      fetcher as typeof fetch,
+    )
+
+    expect(await client.simplify('A+B', 'Simplify the statement.')).toBe('Add two integers.')
+    expect(fetcher).toHaveBeenCalledTimes(1)
   })
 })

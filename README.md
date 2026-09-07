@@ -44,9 +44,10 @@ XSY_FETCHER_URL=
 XSY_FETCHER_TOKEN=
 MEILI_HOST=http://127.0.0.1:7700
 MEILI_API_KEY=
-YUANTIJI_CHAT_ENDPOINT=https://api.deepseek.com/chat/completions
+YUANTIJI_CHAT_ENDPOINT=https://api.openai.com/v1/chat/completions
 YUANTIJI_CHAT_API_KEY=
-YUANTIJI_CHAT_MODEL=deepseek-v4-flash
+YUANTIJI_CHAT_MODEL=gpt-5.2
+YUANTIJI_CHAT_REASONING_EFFORT=low
 YUANTIJI_EMBEDDING_ENDPOINT=https://{WorkspaceId}.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings
 YUANTIJI_EMBEDDING_API_KEY=
 YUANTIJI_EMBEDDING_MODEL=qwen3.7-text-embedding
@@ -57,6 +58,8 @@ YUANTIJI_INDEX_CONCURRENCY=8
 `XSY_FETCHER_URL` 和 `XSY_FETCHER_TOKEN` 可选。配置后，后端访问小视野的请求会转发到国内 `xsy-fetcher` 云函数；不配置时仍然直连小视野。
 
 原题机的简化题意和 embedding 使用两组互相独立的 OpenAI-compatible 完整端点、API key 与模型名。题库和查询必须使用同一个 embedding 配置。`YUANTIJI_INDEX_CONCURRENCY` 控制索引脚本同时处理的题目数，默认为 8，可配置为 1～32。
+
+`YUANTIJI_CHAT_REASONING_EFFORT` 会作为 GPT Chat Completions 请求的 `reasoning_effort` 参数发送；未设置或留空时省略该参数，使用模型默认值。请填写所选模型支持的值，例如 `low`、`medium`、`high`。修改后重启后端；该配置也用于后续索引任务的题意简化，但不会触发已有题目的自动重新生成。
 
 ## 原题机索引
 
