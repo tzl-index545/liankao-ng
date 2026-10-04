@@ -119,7 +119,7 @@
             class="rating-point"
             tabindex="0"
             role="img"
-            :aria-label="`比赛 ${point.contestId}，${formatDate(point.timestamp)} ${formatTime(point.timestamp, true)}，Rating ${formatRating(point.beforeRating)} 到 ${formatRating(point.afterRating)}，变化 ${formatDelta(point.delta)}`"
+            :aria-label="`${point.contestName}，${formatDate(point.timestamp)} ${formatTime(point.timestamp, true)}，Rating ${formatRating(point.beforeRating)} 到 ${formatRating(point.afterRating)}，变化 ${formatDelta(point.delta)}`"
             @mouseenter="hoveredPoint = point"
             @mouseleave="hoveredPoint = null"
             @focus="hoveredPoint = point"
@@ -132,7 +132,7 @@
         </svg>
 
         <div v-if="hoveredPoint" class="chart-tooltip" role="tooltip" :style="tooltipStyle">
-          <div class="tooltip-title">比赛 {{ hoveredPoint.contestId }}</div>
+          <div class="tooltip-title">{{ hoveredPoint.contestName }}</div>
           <div>结束时间：{{ formatDate(hoveredPoint.timestamp) }} {{ formatTime(hoveredPoint.timestamp, true) }}</div>
           <div>Rating：{{ formatRating(hoveredPoint.beforeRating) }} → {{ formatRating(hoveredPoint.afterRating) }}</div>
           <div :class="deltaClass(hoveredPoint.delta)">变化：{{ formatDelta(hoveredPoint.delta) }}</div>
@@ -186,6 +186,7 @@ const sortedRatingHistory = computed(() => {
     .map((item, index) => ({
       id: item.id ?? `${item.contestId}-${index}`,
       contestId: toNumber(item.contestId),
+      contestName: item.contestName,
       timestamp: typeof item.endTime === 'string' ? Date.parse(item.endTime) : NaN,
       beforeRating: toNumber(item.preContestRating),
       afterRating: toNumber(item.postContestRating)

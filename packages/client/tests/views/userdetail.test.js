@@ -13,6 +13,7 @@ let resizeCallback
 const disconnect = vi.fn()
 const historyItem = (overrides = {}) => ({
   id: 1, contestId: 20, endTime: '2026-09-01T04:00:00Z',
+  contestName: `联考第 ${overrides.contestId ?? 20} 场`,
   preContestRating: 1500, postContestRating: 1510, ...overrides
 })
 const historyResponse = (data) => ({ success: true, data })
@@ -81,9 +82,9 @@ describe('UserDetail view', () => {
     expect(points).toHaveLength(3)
     expect((x(points[1]) - x(points[0])) / (x(points[2]) - x(points[0]))).toBeCloseTo(0.1)
     const labels = wrapper.findAll('.rating-point').map((point) => point.attributes('aria-label'))
-    expect(labels[0]).toContain('比赛 20，')
-    expect(labels[1]).toContain('比赛 100，')
-    expect(labels[2]).toContain('比赛 5，')
+    expect(labels[0]).toContain('联考第 20 场，')
+    expect(labels[1]).toContain('联考第 100 场，')
+    expect(labels[2]).toContain('联考第 5 场，')
     expect(wrapper.findAll('.x-axis-label')[0].text()).toContain('2026-09-01')
     expect(wrapper.findAll('.x-axis-label').at(-1).text()).toContain('2026-09-11')
   })
@@ -110,6 +111,7 @@ describe('UserDetail view', () => {
     const point = wrapper.get('.rating-point')
     expect(point.attributes('tabindex')).toBe('0')
     await point.trigger('focus')
+    expect(wrapper.get('.tooltip-title').text()).toBe('联考第 20 场')
     expect(wrapper.get('.chart-tooltip').text()).toContain('变化：-')
     expect(wrapper.get('.chart-tooltip').text()).toContain('结束时间：2026-09-01')
     await point.trigger('blur')
@@ -134,7 +136,7 @@ describe('UserDetail view', () => {
     ]))
     const wrapper = await mountUserDetail()
     expect(x(dots(wrapper)[0])).toBe(x(dots(wrapper)[1]))
-    expect(wrapper.findAll('.rating-point')[0].attributes('aria-label')).toContain('比赛 20，')
+    expect(wrapper.findAll('.rating-point')[0].attributes('aria-label')).toContain('联考第 20 场，')
     expect(wrapper.get('.rating-line').attributes('d')).not.toMatch(/NaN|Infinity/)
   })
 
@@ -186,7 +188,7 @@ describe('UserDetail view', () => {
     await flushPromises()
     expect(wrapper.get('.basic-info').text()).toContain('1800')
     expect(wrapper.get('.basic-info').text()).not.toContain('1234')
-    expect(wrapper.get('.rating-point').attributes('aria-label')).toContain('比赛 88，')
+    expect(wrapper.get('.rating-point').attributes('aria-label')).toContain('联考第 88 场，')
   })
 
   it('clears previous data and distinguishes a failed request from an empty history', async () => {

@@ -73,6 +73,7 @@ export const userRatingHistoryItem = t.Object({
   id: t.Number(),
   userId: t.Number(),
   contestId: t.Number(),
+  contestName: t.String(),
   endTime: t.String({ format: 'date-time' }),
   rank: t.Number(),
   preContestRating: t.Nullable(t.Number()),

@@ -30,7 +30,7 @@ describe('UserService', () => {
         rank: 1,
         preContestRating: 1500,
         postContestRating: 1512,
-        contest: { type: 1, endTime: new Date('2026-09-01T04:00:00Z') }
+        contest: { type: 1, name: '九月联考第一场', endTime: new Date('2026-09-01T04:00:00Z') }
       },
       {
         id: 2,
@@ -39,7 +39,7 @@ describe('UserService', () => {
         rank: 2,
         preContestRating: 1512,
         postContestRating: 1512,
-        contest: { type: 0, endTime: new Date('2026-09-02T04:00:00Z') }
+        contest: { type: 0, name: '练习赛', endTime: new Date('2026-09-02T04:00:00Z') }
       },
       {
         id: 3,
@@ -48,7 +48,7 @@ describe('UserService', () => {
         rank: 3,
         preContestRating: 1512,
         postContestRating: 1504,
-        contest: { type: 3, endTime: new Date('2026-09-11T04:00:00Z') }
+        contest: { type: 3, name: '九月联考第二场', endTime: new Date('2026-09-11T04:00:00Z') }
       }
     ])
 
@@ -74,6 +74,7 @@ describe('UserService', () => {
         contest: {
           select: {
             type: true,
+            name: true,
             endTime: true
           }
         }
@@ -86,6 +87,7 @@ describe('UserService', () => {
           id: 1,
           userId: 7,
           contestId: 1001,
+          contestName: '九月联考第一场',
           endTime: '2026-09-01T04:00:00.000Z',
           rank: 1,
           preContestRating: 1500,
@@ -95,6 +97,7 @@ describe('UserService', () => {
           id: 3,
           userId: 7,
           contestId: 1003,
+          contestName: '九月联考第二场',
           endTime: '2026-09-11T04:00:00.000Z',
           rank: 3,
           preContestRating: 1512,
@@ -148,7 +151,7 @@ describe('UserService', () => {
     })
   })
 
-  it('serializes the contest end time through the validated rating-history route', async () => {
+  it('returns the contest title and end time through the validated rating-history route', async () => {
     participationFindMany.mockResolvedValue([{
       id: 1,
       userId: 7,
@@ -156,13 +159,14 @@ describe('UserService', () => {
       rank: 1,
       preContestRating: 1500,
       postContestRating: 1510,
-      contest: { type: 1, endTime: new Date('2026-10-04T12:00:00+08:00') }
+      contest: { type: 1, name: '十月联考', endTime: new Date('2026-10-04T12:00:00+08:00') }
     }])
     const { user } = await import('./index')
     const response = await user.handle(new Request('http://localhost/user/7/ratingHistory'))
 
     expect(response.status).toBe(200)
     const body = await response.json()
+    expect(body.data[0].contestName).toBe('十月联考')
     expect(body.data[0].endTime).toBe('2026-10-04T04:00:00.000Z')
     expect(body.data[0]).not.toHaveProperty('contest')
   })

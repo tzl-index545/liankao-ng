@@ -111,6 +111,7 @@ export abstract class UserService {
         contest: {
           select: {
             type: true,
+            name: true,
             endTime: true
           }
         }
@@ -123,6 +124,7 @@ export abstract class UserService {
         .filter((item) => isRatedContest(item.contest.type))
         .map(({ contest, ...item }) => ({
           ...item,
+          contestName: contest.name,
           endTime: contest.endTime.toISOString()
         }))
     }
