@@ -110,7 +110,8 @@ export abstract class UserService {
         postContestRating: true,
         contest: {
           select: {
-            type: true
+            type: true,
+            endTime: true
           }
         }
       }
@@ -120,7 +121,10 @@ export abstract class UserService {
       success: true as const,
       data: ratingHistory
         .filter((item) => isRatedContest(item.contest.type))
-        .map(({ contest, ...item }) => item)
+        .map(({ contest, ...item }) => ({
+          ...item,
+          endTime: contest.endTime.toISOString()
+        }))
     }
   }
 }

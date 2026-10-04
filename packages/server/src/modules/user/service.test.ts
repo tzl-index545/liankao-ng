@@ -30,7 +30,7 @@ describe('UserService', () => {
         rank: 1,
         preContestRating: 1500,
         postContestRating: 1512,
-        contest: { type: 1 }
+        contest: { type: 1, endTime: new Date('2026-09-01T04:00:00Z') }
       },
       {
         id: 2,
@@ -39,7 +39,7 @@ describe('UserService', () => {
         rank: 2,
         preContestRating: 1512,
         postContestRating: 1512,
-        contest: { type: 0 }
+        contest: { type: 0, endTime: new Date('2026-09-02T04:00:00Z') }
       },
       {
         id: 3,
@@ -48,7 +48,7 @@ describe('UserService', () => {
         rank: 3,
         preContestRating: 1512,
         postContestRating: 1504,
-        contest: { type: 3 }
+        contest: { type: 3, endTime: new Date('2026-09-11T04:00:00Z') }
       }
     ])
 
@@ -73,7 +73,8 @@ describe('UserService', () => {
         postContestRating: true,
         contest: {
           select: {
-            type: true
+            type: true,
+            endTime: true
           }
         }
       }
@@ -85,6 +86,7 @@ describe('UserService', () => {
           id: 1,
           userId: 7,
           contestId: 1001,
+          endTime: '2026-09-01T04:00:00.000Z',
           rank: 1,
           preContestRating: 1500,
           postContestRating: 1512
@@ -93,6 +95,7 @@ describe('UserService', () => {
           id: 3,
           userId: 7,
           contestId: 1003,
+          endTime: '2026-09-11T04:00:00.000Z',
           rank: 3,
           preContestRating: 1512,
           postContestRating: 1504
@@ -143,5 +146,24 @@ describe('UserService', () => {
         }
       ]
     })
+  })
+
+  it('serializes the contest end time through the validated rating-history route', async () => {
+    participationFindMany.mockResolvedValue([{
+      id: 1,
+      userId: 7,
+      contestId: 20,
+      rank: 1,
+      preContestRating: 1500,
+      postContestRating: 1510,
+      contest: { type: 1, endTime: new Date('2026-10-04T12:00:00+08:00') }
+    }])
+    const { user } = await import('./index')
+    const response = await user.handle(new Request('http://localhost/user/7/ratingHistory'))
+
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.data[0].endTime).toBe('2026-10-04T04:00:00.000Z')
+    expect(body.data[0]).not.toHaveProperty('contest')
   })
 })

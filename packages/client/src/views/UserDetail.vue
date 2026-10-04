@@ -31,19 +31,26 @@
           <span class="value">{{ userInfo.realname || '-' }}</span>
         </div>
       </div>
+      <div v-else-if="!loading" class="user-error">{{ userError || '暂无用户信息' }}</div>
     </div>
 
-    <div class="chart-container" v-loading="chartLoading">
-      <div v-if="ratingPoints.length" class="rating-chart" @mouseleave="hoveredPoint = null">
+    <h2 class="chart-title">Rating 变化</h2>
+    <div ref="chartContainer" class="chart-container" v-loading="chartLoading">
+      <div
+        v-if="ratingPoints.length"
+        class="rating-chart"
+        @mouseleave="hoveredPoint = null"
+        @keydown.esc="hoveredPoint = null"
+      >
         <svg
           class="rating-chart-svg"
-          :viewBox="`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`"
-          role="img"
-          aria-label="Rating 变化图"
+          :viewBox="`0 0 ${chartWidth} ${CHART_HEIGHT}`"
+          role="group"
+          aria-label="Rating 变化图，横轴为比赛结束时间"
         >
-          <rect class="chart-bg" :width="CHART_WIDTH" :height="CHART_HEIGHT" />
+          <rect class="chart-bg" :width="chartWidth" :height="CHART_HEIGHT" />
 
-          <g>
+          <g class="rating-bands">
             <rect
               v-for="band in chartBands"
               :key="band.label"
@@ -60,7 +67,7 @@
               v-for="tick in yAxisTicks"
               :key="tick.value"
               :x1="CHART_PADDING.left"
-              :x2="CHART_WIDTH - CHART_PADDING.right"
+              :x2="chartWidth - CHART_PADDING.right"
               :y1="tick.y"
               :y2="tick.y"
             />
@@ -78,19 +85,21 @@
             </text>
             <text
               v-for="tick in xAxisTicks"
-              :key="`x-${tick.value}`"
+              :key="`x-${tick.timestamp}`"
+              class="x-axis-label"
               :x="tick.x"
-              :y="CHART_HEIGHT - 12"
-              text-anchor="middle"
+              :y="CHART_HEIGHT - 24"
+              :text-anchor="tick.anchor"
             >
-              {{ tick.value }}
+              <tspan :x="tick.x">{{ formatDate(tick.timestamp) }}</tspan>
+              <tspan v-if="showTickTime" :x="tick.x" dy="16">{{ formatTime(tick.timestamp, showTickSeconds) }}</tspan>
             </text>
           </g>
 
           <line
             class="axis-line"
             :x1="CHART_PADDING.left"
-            :x2="CHART_WIDTH - CHART_PADDING.right"
+            :x2="chartWidth - CHART_PADDING.right"
             :y1="CHART_HEIGHT - CHART_PADDING.bottom"
             :y2="CHART_HEIGHT - CHART_PADDING.bottom"
           />
@@ -108,39 +117,45 @@
             v-for="point in ratingPoints"
             :key="point.id"
             class="rating-point"
+            tabindex="0"
+            role="img"
+            :aria-label="`比赛 ${point.contestId}，${formatDate(point.timestamp)} ${formatTime(point.timestamp, true)}，Rating ${formatRating(point.beforeRating)} 到 ${formatRating(point.afterRating)}，变化 ${formatDelta(point.delta)}`"
             @mouseenter="hoveredPoint = point"
+            @mouseleave="hoveredPoint = null"
             @focus="hoveredPoint = point"
+            @blur="hoveredPoint = null"
+            @click="hoveredPoint = point"
           >
             <circle class="rating-point-hit" :cx="point.x" :cy="point.y" r="14" />
             <circle class="rating-point-dot" :cx="point.x" :cy="point.y" r="4.5" />
           </g>
         </svg>
 
-        <div v-if="hoveredPoint" class="chart-tooltip" :style="tooltipStyle">
+        <div v-if="hoveredPoint" class="chart-tooltip" role="tooltip" :style="tooltipStyle">
           <div class="tooltip-title">比赛 {{ hoveredPoint.contestId }}</div>
-          <div>Rating：{{ formatRating(hoveredPoint.beforeRating) }} -> {{ formatRating(hoveredPoint.afterRating) }}</div>
+          <div>结束时间：{{ formatDate(hoveredPoint.timestamp) }} {{ formatTime(hoveredPoint.timestamp, true) }}</div>
+          <div>Rating：{{ formatRating(hoveredPoint.beforeRating) }} → {{ formatRating(hoveredPoint.afterRating) }}</div>
           <div :class="deltaClass(hoveredPoint.delta)">变化：{{ formatDelta(hoveredPoint.delta) }}</div>
         </div>
       </div>
-      <div v-else-if="!chartLoading" class="chart-empty">暂无 Rating 变化</div>
+      <div v-else-if="!chartLoading" class="chart-empty">{{ chartError || '暂无 Rating 变化' }}</div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, onBeforeUnmount, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getUserDetail, getUserRatingHistory } from '../api/user'
 import UserName from '../components/UserName.vue'
 import { RATING_BANDS } from '../utils/rating'
 
-const CHART_WIDTH = 960
 const CHART_HEIGHT = 360
 const CHART_PADDING = {
   top: 24,
   right: 24,
-  bottom: 42,
+  bottom: 56,
   left: 58
 }
 
@@ -150,25 +165,33 @@ const chartLoading = ref(false)
 const userInfo = ref(null)
 const ratingHistory = ref([])
 const hoveredPoint = ref(null)
+const userError = ref('')
+const chartError = ref('')
+const chartContainer = ref(null)
+const chartWidth = ref(960)
 
-const chartInnerWidth = CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right
+const chartInnerWidth = computed(() => chartWidth.value - CHART_PADDING.left - CHART_PADDING.right)
 const chartInnerHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom
 
 const toNumber = (value) => {
-  if (value === null || value === undefined || value === '') return null
+  if (typeof value !== 'number' && typeof value !== 'string') return null
+  if (typeof value === 'string' && !value.trim()) return null
   const number = Number(value)
   return Number.isFinite(number) ? number : null
 }
 
 const sortedRatingHistory = computed(() => {
   return ratingHistory.value
+    .filter((item) => item && typeof item === 'object')
     .map((item, index) => ({
       id: item.id ?? `${item.contestId}-${index}`,
       contestId: toNumber(item.contestId),
+      timestamp: typeof item.endTime === 'string' ? Date.parse(item.endTime) : NaN,
       beforeRating: toNumber(item.preContestRating),
       afterRating: toNumber(item.postContestRating)
     }))
-    .filter((item) => item.contestId !== null && item.afterRating !== null)
+    .filter((item) => item.contestId !== null && item.afterRating !== null && Number.isFinite(item.timestamp))
+    .sort((a, b) => a.timestamp - b.timestamp || a.contestId - b.contestId)
 })
 
 const yDomain = computed(() => {
@@ -177,24 +200,16 @@ const yDomain = computed(() => {
     item.afterRating
   ]).filter((value) => value !== null)
 
-  const bandBounds = RATING_BANDS.flatMap((band) => [band.min, band.max])
-    .filter(Number.isFinite)
-
-  const values = [...ratings, ...bandBounds]
-  if (!values.length) return { min: 1200, max: 1800 }
-
-  let min = Math.min(...values)
-  let max = Math.max(...values)
-
-  if (min === max) {
-    min -= 100
-    max += 100
-  }
-
-  const padding = Math.max(80, (max - min) * 0.12)
+  const min = ratings.length ? Math.min(...ratings) : 1200
+  const max = ratings.length ? Math.max(...ratings) : 1800
+  const padding = Math.max(50, (max - min) * 0.12)
+  const roughStep = (max - min + 2 * padding) / 5
+  const magnitude = 10 ** Math.floor(Math.log10(roughStep))
+  const step = [1, 2, 5, 10].find((value) => value * magnitude >= roughStep) * magnitude
   return {
-    min: Math.floor((min - padding) / 100) * 100,
-    max: Math.ceil((max + padding) / 100) * 100
+    min: Math.floor((min - padding) / step) * step,
+    max: Math.ceil((max + padding) / step) * step,
+    step
   }
 })
 
@@ -203,9 +218,15 @@ const ratingToY = (rating) => {
   return CHART_PADDING.top + ((max - rating) / (max - min)) * chartInnerHeight
 }
 
-const indexToX = (index, total) => {
-  if (total <= 1) return CHART_PADDING.left + chartInnerWidth / 2
-  return CHART_PADDING.left + (index / (total - 1)) * chartInnerWidth
+const timeDomain = computed(() => {
+  const history = sortedRatingHistory.value
+  return { min: history[0]?.timestamp ?? 0, max: history.at(-1)?.timestamp ?? 0 }
+})
+
+const timeToX = (timestamp) => {
+  const { min, max } = timeDomain.value
+  if (min === max) return CHART_PADDING.left + chartInnerWidth.value / 2
+  return CHART_PADDING.left + ((timestamp - min) / (max - min)) * chartInnerWidth.value
 }
 
 const chartBands = computed(() => {
@@ -228,30 +249,22 @@ const chartBands = computed(() => {
 })
 
 const yAxisTicks = computed(() => {
-  const { min, max } = yDomain.value
-  const ticks = new Set([min, max])
-
-  for (const band of RATING_BANDS) {
-    if (Number.isFinite(band.min) && band.min > min && band.min < max) ticks.add(band.min)
-    if (Number.isFinite(band.max) && band.max > min && band.max < max) ticks.add(band.max)
+  const { min, max, step } = yDomain.value
+  const ticks = []
+  for (let value = min; value <= max; value += step) {
+    ticks.push({ value, y: ratingToY(value) })
   }
-
-  return [...ticks]
-    .sort((a, b) => b - a)
-    .map((value) => ({
-      value,
-      y: ratingToY(value)
-    }))
+  return ticks
 })
 
 const ratingPoints = computed(() => {
   const history = sortedRatingHistory.value
 
-  return history.map((item, index) => ({
+  return history.map((item) => ({
     ...item,
-    x: indexToX(index, history.length),
+    x: timeToX(item.timestamp),
     y: ratingToY(item.afterRating),
-    delta: item.beforeRating === null ? 0 : item.afterRating - item.beforeRating
+    delta: item.beforeRating === null ? null : item.afterRating - item.beforeRating
   }))
 })
 
@@ -262,34 +275,48 @@ const ratingLinePath = computed(() => {
 })
 
 const xAxisTicks = computed(() => {
-  const points = ratingPoints.value
-  if (!points.length) return []
-  if (points.length === 1) return [{ value: points[0].contestId, x: points[0].x }]
-
-  const count = Math.min(5, points.length)
-  const indices = new Set()
-  for (let i = 0; i < count; i++) {
-    indices.add(Math.round((i * (points.length - 1)) / (count - 1)))
-  }
-
-  return [...indices]
-    .sort((a, b) => a - b)
-    .map((index) => ({
-      value: points[index].contestId,
-      x: points[index].x
-    }))
+  if (!ratingPoints.value.length) return []
+  const { min, max } = timeDomain.value
+  if (min === max) return [{ timestamp: min, x: timeToX(min), anchor: 'middle' }]
+  const count = Math.max(2, Math.min(6, Math.floor(chartInnerWidth.value / 140) + 1))
+  return Array.from({ length: count }, (_, index) => {
+    const timestamp = min + ((max - min) * index) / (count - 1)
+    return {
+      timestamp,
+      x: timeToX(timestamp),
+      anchor: index === 0 ? 'start' : index === count - 1 ? 'end' : 'middle'
+    }
+  })
 })
+
+const tickInterval = computed(() => (timeDomain.value.max - timeDomain.value.min) / Math.max(1, xAxisTicks.value.length - 1))
+const showTickTime = computed(() => tickInterval.value < 86400000)
+const showTickSeconds = computed(() => tickInterval.value < 60000)
+const pad = (value) => String(value).padStart(2, '0')
+const formatDate = (timestamp) => {
+  const date = new Date(timestamp)
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+}
+const formatTime = (timestamp, seconds = false) => {
+  const date = new Date(timestamp)
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}${seconds ? `:${pad(date.getSeconds())}` : ''}`
+}
 
 const tooltipStyle = computed(() => {
   if (!hoveredPoint.value) return {}
-
+  const width = Math.min(260, chartWidth.value - 16)
+  const point = hoveredPoint.value
+  const above = point.y > CHART_HEIGHT / 2
   return {
-    left: `${(hoveredPoint.value.x / CHART_WIDTH) * 100}%`,
-    top: `${(hoveredPoint.value.y / CHART_HEIGHT) * 100}%`
+    width: `${width}px`,
+    left: `${Math.max(8, Math.min(point.x - width / 2, chartWidth.value - width - 8))}px`,
+    top: `${point.y + (above ? -12 : 12)}px`,
+    transform: above ? 'translateY(-100%)' : 'none'
   }
 })
 
 const formatDelta = (delta) => {
+  if (delta === null) return '-'
   if (delta > 0) return `+${delta}`
   return String(delta)
 }
@@ -304,34 +331,60 @@ const deltaClass = (delta) => {
   return 'delta-zero'
 }
 
-const fetchUserDetail = async () => {
-  loading.value = true
-  try {
-    const res = await getUserDetail(route.params.id)
-    userInfo.value = res.data
-  } catch (error) {
-    ElMessage.error('获取用户信息失败')
-  } finally {
-    loading.value = false
-  }
-}
+watch(() => route.params.id, (id, _previousId, onCleanup) => {
+  let active = true
+  onCleanup(() => { active = false })
+  userInfo.value = null
+  ratingHistory.value = []
+  hoveredPoint.value = null
+  userError.value = ''
+  chartError.value = ''
+  loading.value = chartLoading.value = true
 
-const fetchRatingHistory = async () => {
-  chartLoading.value = true
-  try {
-    const res = await getUserRatingHistory(route.params.id)
-    ratingHistory.value = res.data || []
-  } catch (error) {
-    ElMessage.error('获取 Rating 变化数据失败')
-  } finally {
-    chartLoading.value = false
+  const fetchUserDetail = async () => {
+    try {
+      const res = await getUserDetail(id)
+      if (active) userInfo.value = res.data
+    } catch {
+      if (active) {
+        userError.value = '获取用户信息失败'
+        ElMessage.error(userError.value)
+      }
+    } finally {
+      if (active) loading.value = false
+    }
   }
-}
 
-onMounted(() => {
+  const fetchRatingHistory = async () => {
+    try {
+      const res = await getUserRatingHistory(id)
+      if (active) ratingHistory.value = Array.isArray(res.data) ? res.data : []
+    } catch {
+      if (active) {
+        chartError.value = '获取 Rating 变化数据失败'
+        ElMessage.error(chartError.value)
+      }
+    } finally {
+      if (active) chartLoading.value = false
+    }
+  }
+
   fetchUserDetail()
   fetchRatingHistory()
+}, { immediate: true })
+
+let resizeObserver
+onMounted(() => {
+  const updateWidth = () => {
+    const width = chartContainer.value?.clientWidth
+    if (width) chartWidth.value = width
+    hoveredPoint.value = null
+  }
+  updateWidth()
+  resizeObserver = new ResizeObserver(updateWidth)
+  resizeObserver.observe(chartContainer.value)
 })
+onBeforeUnmount(() => resizeObserver?.disconnect())
 </script>
 
 <style scoped>
@@ -380,7 +433,13 @@ onMounted(() => {
 .chart-container {
   position: relative;
   width: 100%;
-  height: 500px;
+  height: 360px;
+}
+
+.chart-title {
+  color: #303133;
+  font-size: 20px;
+  font-weight: 500;
 }
 
 .rating-chart {
@@ -397,6 +456,10 @@ onMounted(() => {
 
 .chart-bg {
   fill: #ffffff;
+}
+
+.rating-bands {
+  opacity: 0.12;
 }
 
 .grid-lines line {
@@ -418,7 +481,7 @@ onMounted(() => {
 
 .rating-line {
   fill: none;
-  stroke: #dcdfe6;
+  stroke: #475569;
   stroke-width: 3;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -435,19 +498,21 @@ onMounted(() => {
 
 .rating-point-dot {
   fill: #ffffff;
-  stroke: #dcdfe6;
+  stroke: #475569;
   stroke-width: 2.5;
   pointer-events: none;
 }
 
-.rating-point:hover .rating-point-dot {
-  fill: #dcdfe6;
+.rating-point:hover .rating-point-dot,
+.rating-point:focus .rating-point-dot {
+  fill: #475569;
+  stroke-width: 4;
 }
 
 .chart-tooltip {
   position: absolute;
   z-index: 2;
-  min-width: 160px;
+  box-sizing: border-box;
   padding: 8px 10px;
   border: 1px solid #dcdfe6;
   border-radius: 6px;
@@ -457,7 +522,7 @@ onMounted(() => {
   font-size: 13px;
   line-height: 1.6;
   pointer-events: none;
-  transform: translate(12px, -50%);
+  overflow-wrap: anywhere;
 }
 
 .tooltip-title {
@@ -484,5 +549,32 @@ onMounted(() => {
   width: 100%;
   height: 100%;
   color: #909399;
+}
+
+.user-error {
+  color: #909399;
+}
+
+@media (max-width: 600px) {
+  .user-detail-container {
+    padding: 16px;
+  }
+
+  .basic-info {
+    padding: 0;
+  }
+
+  .info-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .value {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .axis-labels {
+    font-size: 11px;
+  }
 }
 </style>
