@@ -39,8 +39,8 @@
       <div
         v-if="ratingPoints.length"
         class="rating-chart"
-        @mouseleave="hoveredPoint = null"
-        @keydown.esc="hoveredPoint = null"
+        @mouseleave="hideTooltip"
+        @keydown.esc="hideTooltip"
       >
         <svg
           class="rating-chart-svg"
@@ -113,26 +113,42 @@
 
           <path class="rating-line" :d="ratingLinePath" />
 
-          <g
+          <router-link
             v-for="point in ratingPoints"
             :key="point.id"
-            class="rating-point"
-            tabindex="0"
-            role="img"
-            :aria-label="`${point.contestName}，${formatDate(point.timestamp)} ${formatTime(point.timestamp, true)}，Rating ${formatRating(point.beforeRating)} 到 ${formatRating(point.afterRating)}，变化 ${formatDelta(point.delta)}`"
-            @mouseenter="hoveredPoint = point"
-            @mouseleave="hoveredPoint = null"
-            @focus="hoveredPoint = point"
-            @blur="hoveredPoint = null"
-            @click="hoveredPoint = point"
+            :to="`/contests/${point.contestId}`"
+            custom
+            v-slot="{ href, navigate }"
           >
-            <circle class="rating-point-hit" :cx="point.x" :cy="point.y" r="14" />
-            <circle class="rating-point-dot" :cx="point.x" :cy="point.y" r="4.5" />
-          </g>
+            <a
+              :href="href"
+              class="rating-point"
+              tabindex="0"
+              :aria-label="`${point.contestName}，${formatDate(point.timestamp)} ${formatTime(point.timestamp, true)}，Rating ${formatRating(point.beforeRating)} 到 ${formatRating(point.afterRating)}，变化 ${formatDelta(point.delta)}`"
+              @mouseenter="showTooltip(point)"
+              @mouseleave="scheduleHideTooltip"
+              @focus="showTooltip(point)"
+              @blur="scheduleHideTooltip"
+              @click="navigate"
+            >
+              <circle class="rating-point-hit" :cx="point.x" :cy="point.y" r="14" />
+              <circle class="rating-point-dot" :cx="point.x" :cy="point.y" r="4.5" />
+            </a>
+          </router-link>
         </svg>
 
-        <div v-if="hoveredPoint" class="chart-tooltip" role="tooltip" :style="tooltipStyle">
-          <div class="tooltip-title">{{ hoveredPoint.contestName }}</div>
+        <div
+          v-if="hoveredPoint"
+          class="chart-tooltip"
+          :style="tooltipStyle"
+          @mouseenter="cancelHideTooltip"
+          @mouseleave="scheduleHideTooltip"
+          @focusin="cancelHideTooltip"
+          @focusout="scheduleHideTooltip"
+        >
+          <router-link class="tooltip-title" :to="`/contests/${hoveredPoint.contestId}`">
+            {{ hoveredPoint.contestName }}
+          </router-link>
           <div>结束时间：{{ formatDate(hoveredPoint.timestamp) }} {{ formatTime(hoveredPoint.timestamp, true) }}</div>
           <div>Rating：{{ formatRating(hoveredPoint.beforeRating) }} → {{ formatRating(hoveredPoint.afterRating) }}</div>
           <div :class="deltaClass(hoveredPoint.delta)">变化：{{ formatDelta(hoveredPoint.delta) }}</div>
@@ -169,6 +185,22 @@ const userError = ref('')
 const chartError = ref('')
 const chartContainer = ref(null)
 const chartWidth = ref(960)
+
+let hideTooltipTimer
+const cancelHideTooltip = () => clearTimeout(hideTooltipTimer)
+const hideTooltip = () => {
+  cancelHideTooltip()
+  hoveredPoint.value = null
+}
+const showTooltip = (point) => {
+  cancelHideTooltip()
+  hoveredPoint.value = point
+}
+// Allow the pointer to cross the gap from a point to its contest link.
+const scheduleHideTooltip = () => {
+  cancelHideTooltip()
+  hideTooltipTimer = setTimeout(hideTooltip, 150)
+}
 
 const chartInnerWidth = computed(() => chartWidth.value - CHART_PADDING.left - CHART_PADDING.right)
 const chartInnerHeight = CHART_HEIGHT - CHART_PADDING.top - CHART_PADDING.bottom
@@ -337,7 +369,7 @@ watch(() => route.params.id, (id, _previousId, onCleanup) => {
   onCleanup(() => { active = false })
   userInfo.value = null
   ratingHistory.value = []
-  hoveredPoint.value = null
+  hideTooltip()
   userError.value = ''
   chartError.value = ''
   loading.value = chartLoading.value = true
@@ -379,13 +411,16 @@ onMounted(() => {
   const updateWidth = () => {
     const width = chartContainer.value?.clientWidth
     if (width) chartWidth.value = width
-    hoveredPoint.value = null
+    hideTooltip()
   }
   updateWidth()
   resizeObserver = new ResizeObserver(updateWidth)
   resizeObserver.observe(chartContainer.value)
 })
-onBeforeUnmount(() => resizeObserver?.disconnect())
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect()
+  cancelHideTooltip()
+})
 </script>
 
 <style scoped>
@@ -522,13 +557,21 @@ onBeforeUnmount(() => resizeObserver?.disconnect())
   color: #303133;
   font-size: 13px;
   line-height: 1.6;
-  pointer-events: none;
   overflow-wrap: anywhere;
 }
 
 .tooltip-title {
+  display: block;
+  color: inherit;
   font-weight: 600;
   margin-bottom: 2px;
+  text-decoration: none;
+}
+
+.tooltip-title:hover,
+.tooltip-title:focus-visible {
+  color: #409eff;
+  text-decoration: underline;
 }
 
 .delta-positive {

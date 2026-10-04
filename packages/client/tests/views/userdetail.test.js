@@ -26,7 +26,10 @@ const deferred = () => {
 const mountUserDetail = async () => {
   const router = createRouter({
     history: createMemoryHistory(),
-    routes: [{ path: '/users/:id', component: UserDetail }]
+    routes: [
+      { path: '/users/:id', component: UserDetail },
+      { path: '/contests/:id', component: { template: '<div>比赛详情</div>' } }
+    ]
   })
   router.push('/users/7')
   await router.isReady()
@@ -68,6 +71,7 @@ describe('UserDetail view', () => {
 
   afterEach(() => {
     wrappers.splice(0).forEach((wrapper) => wrapper.unmount())
+    vi.useRealTimers()
     vi.unstubAllGlobals()
   })
 
@@ -102,7 +106,7 @@ describe('UserDetail view', () => {
     expect(wrapper.get('.chart-tooltip').text()).toContain('Rating：0 → 0')
     expect(wrapper.get('.chart-tooltip').text()).toContain('变化：0')
     await wrapper.get('.rating-point').trigger('mouseleave')
-    expect(wrapper.find('.chart-tooltip').exists()).toBe(false)
+    await vi.waitFor(() => expect(wrapper.find('.chart-tooltip').exists()).toBe(false))
   })
 
   it('shows an unknown delta as missing rather than zero and supports keyboard focus', async () => {
@@ -115,7 +119,32 @@ describe('UserDetail view', () => {
     expect(wrapper.get('.chart-tooltip').text()).toContain('变化：-')
     expect(wrapper.get('.chart-tooltip').text()).toContain('结束时间：2026-09-01')
     await point.trigger('blur')
-    expect(wrapper.find('.chart-tooltip').exists()).toBe(false)
+    await vi.waitFor(() => expect(wrapper.find('.chart-tooltip').exists()).toBe(false))
+  })
+
+  it('links chart points to the corresponding contest page', async () => {
+    const wrapper = await mountUserDetail()
+    const point = wrapper.get('.rating-point')
+    expect(point.element.tagName.toLowerCase()).toBe('a')
+    expect(point.attributes('href')).toBe('/contests/20')
+    await point.trigger('click')
+    await flushPromises()
+    expect(wrapper.vm.$router.currentRoute.value.path).toBe('/contests/20')
+  })
+
+  it('keeps the title link available when moving from a point into its tooltip', async () => {
+    const wrapper = await mountUserDetail()
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+    await wrapper.get('.rating-point').trigger('mouseenter')
+    await wrapper.get('.rating-point').trigger('mouseleave')
+    await wrapper.get('.chart-tooltip').trigger('mouseenter')
+    await vi.advanceTimersByTimeAsync(200)
+    const title = wrapper.get('.tooltip-title')
+    expect(title.text()).toBe('联考第 20 场')
+    expect(title.attributes('href')).toBe('/contests/20')
+    await title.trigger('click')
+    await flushPromises()
+    expect(wrapper.vm.$router.currentRoute.value.path).toBe('/contests/20')
   })
 
   it('keeps a flat, single-contest history visible without forcing every rating band into view', async () => {
@@ -159,7 +188,7 @@ describe('UserDetail view', () => {
     expect(wrapper.get('svg').attributes('viewBox')).toBe('0 0 320 360')
     expect(wrapper.findAll('.x-axis-label')).toHaveLength(2)
     for (const point of wrapper.findAll('.rating-point')) {
-      await point.trigger('click')
+      await point.trigger('focus')
       const { left, width, top } = wrapper.get('.chart-tooltip').element.style
       expect(parseFloat(left)).toBeGreaterThanOrEqual(0)
       expect(parseFloat(left) + parseFloat(width)).toBeLessThanOrEqual(320)
