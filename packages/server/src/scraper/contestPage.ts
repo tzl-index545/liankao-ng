@@ -60,7 +60,8 @@ export function parseXsyContestPage(
       $(".jumbotron h2").first().text() ||
       $("#main h2").first().text(),
   );
-  const name = rawName.split("-").pop()?.trim() || rawName;
+  // Strip the upstream contest prefix without splitting hyphens in the title.
+  const name = rawName.replace(/^Contest\s*\d+\s*-\s*/i, "").trim();
   if (!name) throw new Error("XSY contest page does not contain a title");
 
   const startTimeText = normalizeText(

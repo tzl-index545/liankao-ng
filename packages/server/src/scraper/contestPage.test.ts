@@ -1,11 +1,10 @@
 import { describe, expect, it } from "bun:test";
 import { parseXsyContestPage } from "./contestPage";
 
-describe("parseXsyContestPage", () => {
-  it("keeps the actual upstream pid and URL for each problem", () => {
-    const html = `
+function contestHtml(heading = "<font>Contest2446 - 联考测试</font>"): string {
+  return `
       <html><body><div id="main"><center><div>
-        <font>Contest2446 - 联考测试</font>
+        ${heading}
         <font size="4px">
           <font color="#993399">2026-07-30 08:00:00</font>
           <font color="#993399">2026-07-30 12:00:00</font>
@@ -17,14 +16,36 @@ describe("parseXsyContestPage", () => {
       </tbody></table>
       </center></div></body></html>
     `;
+}
 
-    const result = parseXsyContestPage(html, 2446);
+describe("parseXsyContestPage", () => {
+  it("keeps the actual upstream pid and URL for each problem", () => {
+    const result = parseXsyContestPage(contestHtml(), 2446);
 
     expect(result.name).toBe("联考测试");
     expect(result.problems.map((problem) => problem.sourcePid)).toEqual([3, 7]);
     expect(result.problems[0].sourceUrl).toBe(
       "http://xsy.gdgzez.com.cn/JudgeOnline/problem.php?cid=2446&pid=3",
     );
+  });
+
+  it.each([
+    ["<font>Contest2446 - 联考 - Day 1</font>", "联考 - Day 1"],
+    ["<font>Contest2446 - 2026-11-07 联考-Day-1</font>", "2026-11-07 联考-Day-1"],
+    ["<font>Contest2446-联考-Day-1</font>", "联考-Day-1"],
+    ["<font>Contest 2446 - 联考-Day-1</font>", "联考-Day-1"],
+    ["<font>Contest2446 - 联考-</font>", "联考-"],
+    ["<font>联考-Day-1</font>", "联考-Day-1"],
+    ['<div class="jumbotron"><h2>联考 - Day 1</h2></div>', "联考 - Day 1"],
+    ["<h2>Contest2446 - 联考-Day-1</h2>", "联考-Day-1"],
+  ])("preserves the full contest name in %s", (heading, expectedName) => {
+    expect(parseXsyContestPage(contestHtml(heading), 2446).name).toBe(expectedName);
+  });
+
+  it("rejects a heading containing only the contest prefix", () => {
+    expect(() =>
+      parseXsyContestPage(contestHtml("<font>Contest2446 - </font>"), 2446),
+    ).toThrow("does not contain a title");
   });
 
   it("rejects a login page instead of importing it", () => {
