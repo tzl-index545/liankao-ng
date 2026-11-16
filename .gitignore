@@ -57,3 +57,4 @@ package-lock.json
 packages/server/src/generated/prisma
 
 test.out
+.vscode
